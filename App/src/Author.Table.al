@@ -14,7 +14,6 @@ table 70301 "LIB Author"
         {
             Caption = 'No.';
             ToolTip = 'Specifies the unique identifier for the author.';
-            DataClassification = CustomerContent;
 
             trigger OnValidate()
             var
@@ -32,25 +31,21 @@ table 70301 "LIB Author"
         {
             Caption = 'Name';
             ToolTip = 'Specifies the name of the author.';
-            DataClassification = CustomerContent;
         }
         field(3; Country; Text[50])
         {
             Caption = 'Country';
             ToolTip = 'Specifies the country of the author.';
-            DataClassification = CustomerContent;
         }
         field(4; Biography; Text[250])
         {
             Caption = 'Biography';
             ToolTip = 'Specifies a brief biography of the author.';
-            DataClassification = CustomerContent;
         }
         field(5; ISNI; Code[16])
         {
             Caption = 'ISNI';
             ToolTip = 'Specifies the International Standard Name Identifier (16 digits).';
-            DataClassification = CustomerContent;
 
             trigger OnValidate()
             var
@@ -72,11 +67,12 @@ table 70301 "LIB Author"
         {
             Caption = 'ORCID';
             ToolTip = 'Specifies the Open Researcher and Contributor ID in format: 0000-0000-0000-0000.';
-            DataClassification = CustomerContent;
 
             trigger OnValidate()
             var
+#pragma warning disable AA0240
                 InvalidFormatErr: Label 'ORCID must be in format: 0000-0000-0000-0000 (four groups of four digits separated by hyphens).';
+#pragma warning restore AA0240
                 i: Integer;
             begin
                 if ORCID = '' then
@@ -86,30 +82,27 @@ table 70301 "LIB Author"
                     Error(InvalidFormatErr);
 
                 // Check format: ####-####-####-####
-                for i := 1 to StrLen(ORCID) do begin
+                for i := 1 to StrLen(ORCID) do
                     if i in [5, 10, 15] then begin
                         if ORCID[i] <> '-' then
                             Error(InvalidFormatErr);
-                    end else begin
+                    end else
                         if not (ORCID[i] in ['0' .. '9']) then
                             Error(InvalidFormatErr);
-                    end;
-                end;
             end;
         }
         field(7; "VIAF ID"; Code[20])
         {
             Caption = 'VIAF ID';
             ToolTip = 'Specifies the Virtual International Authority File identifier.';
-            DataClassification = CustomerContent;
         }
         field(10; "No. Series"; Code[20])
         {
             Caption = 'No. Series';
             ToolTip = 'Specifies the number series from which the author number was assigned.';
             TableRelation = "No. Series";
-            DataClassification = CustomerContent;
             Editable = false;
+            AllowInCustomizations = Never;
         }
     }
 
@@ -124,6 +117,9 @@ table 70301 "LIB Author"
     fieldgroups
     {
         fieldgroup(DropDown; "No.", Name, Country)
+        {
+        }
+        fieldgroup(Brick; "No.", Name)
         {
         }
     }
@@ -141,6 +137,11 @@ table 70301 "LIB Author"
         end;
     end;
 
+    /// <summary>
+    /// Enables the user to select a number series for the author.
+    /// </summary>
+    /// <param name="OldAuthor">The previous author record state.</param>
+    /// <returns>True if a number series was selected; otherwise, false.</returns>
     procedure AssistEdit(OldAuthor: Record "LIB Author"): Boolean
     var
         LibrarySetup: Record "LIB Library Setup";

@@ -14,13 +14,12 @@ table 70302 "LIB Genre"
         {
             Caption = 'Code';
             ToolTip = 'Specifies the unique code for the genre.';
-            DataClassification = CustomerContent;
+            NotBlank = true;
         }
         field(2; Description; Text[100])
         {
             Caption = 'Description';
             ToolTip = 'Specifies the description of the genre.';
-            DataClassification = CustomerContent;
         }
     }
 
@@ -35,6 +34,9 @@ table 70302 "LIB Genre"
     fieldgroups
     {
         fieldgroup(DropDown; Code, Description)
+        {
+        }
+        fieldgroup(Brick; Code, Description)
         {
         }
     }

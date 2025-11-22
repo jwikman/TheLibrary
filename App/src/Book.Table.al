@@ -14,7 +14,6 @@ table 70303 "LIB Book"
         {
             Caption = 'No.';
             ToolTip = 'Specifies the unique identifier for the book.';
-            DataClassification = CustomerContent;
 
             trigger OnValidate()
             var
@@ -32,20 +31,17 @@ table 70303 "LIB Book"
         {
             Caption = 'Title';
             ToolTip = 'Specifies the title of the book.';
-            DataClassification = CustomerContent;
         }
         field(3; "Author No."; Code[20])
         {
             Caption = 'Author No.';
             ToolTip = 'Specifies the author of the book.';
             TableRelation = "LIB Author";
-            DataClassification = CustomerContent;
         }
         field(4; ISBN; Code[20])
         {
             Caption = 'ISBN';
             ToolTip = 'Specifies the International Standard Book Number.';
-            DataClassification = CustomerContent;
 
             trigger OnValidate()
             var
@@ -65,13 +61,11 @@ table 70303 "LIB Book"
             Caption = 'Genre Code';
             ToolTip = 'Specifies the genre of the book.';
             TableRelation = "LIB Genre";
-            DataClassification = CustomerContent;
         }
         field(6; "Publication Year"; Integer)
         {
             Caption = 'Publication Year';
             ToolTip = 'Specifies the year the book was published.';
-            DataClassification = CustomerContent;
 
             trigger OnValidate()
             var
@@ -80,15 +74,14 @@ table 70303 "LIB Book"
                 if "Publication Year" = 0 then
                     exit;
 
-                if ("Publication Year" < 1) or ("Publication Year" > Date2DMY(Today, 3)) then
-                    Error(InvalidYearErr, Date2DMY(Today, 3));
+                if ("Publication Year" < 1) or ("Publication Year" > Today().Year()) then
+                    Error(InvalidYearErr, Today().Year());
             end;
         }
         field(7; Quantity; Integer)
         {
             Caption = 'Quantity';
             ToolTip = 'Specifies the total number of copies owned.';
-            DataClassification = CustomerContent;
             MinValue = 0;
 
             trigger OnValidate()
@@ -104,21 +97,19 @@ table 70303 "LIB Book"
             Caption = 'Available Quantity';
             ToolTip = 'Specifies the number of copies currently available for loan.';
             Editable = false;
-            DataClassification = CustomerContent;
         }
         field(9; Description; Text[250])
         {
             Caption = 'Description';
             ToolTip = 'Specifies a description of the book.';
-            DataClassification = CustomerContent;
         }
         field(10; "No. Series"; Code[20])
         {
             Caption = 'No. Series';
             ToolTip = 'Specifies the number series from which the book number was assigned.';
             TableRelation = "No. Series";
-            DataClassification = CustomerContent;
             Editable = false;
+            AllowInCustomizations = Never;
         }
     }
 
@@ -133,6 +124,9 @@ table 70303 "LIB Book"
     fieldgroups
     {
         fieldgroup(DropDown; "No.", Title, "Author No.")
+        {
+        }
+        fieldgroup(Brick; "No.", Title)
         {
         }
     }
@@ -150,6 +144,11 @@ table 70303 "LIB Book"
         end;
     end;
 
+    /// <summary>
+    /// Enables the user to select a number series for the book.
+    /// </summary>
+    /// <param name="OldBook">The previous book record state.</param>
+    /// <returns>True if a number series was selected; otherwise, false.</returns>
     procedure AssistEdit(OldBook: Record "LIB Book"): Boolean
     var
         LibrarySetup: Record "LIB Library Setup";
