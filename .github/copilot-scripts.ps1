@@ -152,12 +152,20 @@ $appFolders | ForEach-Object {
         }
     }
 
-    # Filter out the main app dependency before passing to Paket
-    $dependenciesToDownload = @($ManifestObject.dependencies | Where-Object { $_.name -ne $AppManifestObject.name })
+    # Filter out the main app dependency and any invalid entries before passing to Paket
+    $dependenciesToDownload = @($ManifestObject.dependencies | Where-Object {
+        $_ -and
+        $_.name -and
+        $_.publisher -and
+        $_.version -and
+        ($_.name -ne $AppManifestObject.name)
+    })
 
     if ($dependenciesToDownload.Count -gt 0) {
         # Use Paket CLI via NVRAppDevOps to download dependencies
         Write-Host "Downloading $($dependenciesToDownload.Count) dependencies for $_ using Paket CLI..."
+        Write-Host "Dependencies to download:"
+        $dependenciesToDownload | ForEach-Object { Write-Host "  - $($_.publisher).$($_.name) ($($_.version))" }
 
         # Create a temporary app.json with filtered dependencies
         $tempAppJson = Join-Path $currentAppFolder "app.json.paket"
