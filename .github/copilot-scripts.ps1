@@ -172,8 +172,16 @@ $appFolders | ForEach-Object {
         $originalAppJson = Join-Path $currentAppFolder "app.json"
         $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
 
-        $modifiedManifest = $ManifestObject.PSObject.Copy()
-        $modifiedManifest.dependencies = $dependenciesToDownload
+        # Create a proper deep copy by serializing and deserializing
+        $modifiedManifest = $ManifestObject | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        $modifiedManifest.dependencies = @($dependenciesToDownload | ForEach-Object {
+            [PSCustomObject]@{
+                id = $_.id
+                publisher = $_.publisher
+                name = $_.name
+                version = $_.version
+            }
+        })
         $modifiedManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $tempAppJson -Encoding UTF8
 
         # Temporarily swap app.json files
