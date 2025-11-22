@@ -46,12 +46,33 @@ if (-not (Get-Alias -Name Sort -ErrorAction SilentlyContinue)) {
 Install-Module -Name NVRAppDevOps -Scope CurrentUser -Force -AllowClobber
 Import-Module -Name NVRAppDevOps -DisableNameChecking
 
-# Install Paket as a .NET tool (works on both Windows and Linux)
-Write-Host "Installing Paket as .NET tool..."
-dotnet tool install paket --global --version 8.1.3 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Paket already installed, updating..."
-    dotnet tool update paket --global 2>&1 | Out-Null
+# Check if Paket is already installed as a .NET tool
+$paketInstalled = $false
+try {
+    $paketList = dotnet tool list --global | Out-String
+    if ($paketList -match 'paket\s+(\S+)') {
+        Write-Host "Paket already installed (version $($Matches[1]))"
+        $paketInstalled = $true
+    }
+}
+catch {
+    Write-Host "Could not check for existing Paket installation"
+}
+
+# Install Paket as a .NET tool if not already installed
+if (-not $paketInstalled) {
+    Write-Host "Installing Paket as .NET tool..."
+    dotnet tool install paket --global --version 8.1.3 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Paket installation failed, trying update..."
+        dotnet tool update paket --global 2>&1 | Out-Null
+    }
+}
+
+# Determine the actual paket command location
+$paketCommand = Get-Command paket -ErrorAction SilentlyContinue
+if ($paketCommand) {
+    Write-Host "Paket command found at: $($paketCommand.Source)"
 }
 
 # Create a wrapper script for paket.exe that NVRAppDevOps expects
@@ -61,6 +82,7 @@ if (!(Test-Path -Path $paketFolder)) {
 }
 
 $paketExe = Join-Path $paketFolder "paket.exe"
+Write-Host "Paket CLI path: $paketFolder"
 
 # Create a wrapper script that calls the .NET tool
 if ($IsLinux) {
@@ -198,9 +220,15 @@ $appFolders | ForEach-Object {
             }
 
             # Overwrite app.json with filtered dependencies
-            $modifiedManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $originalAppJson -Encoding UTF8
+            $jsonContent = $modifiedManifest | ConvertTo-Json -Depth 10
+            [System.IO.File]::WriteAllText($originalAppJson, $jsonContent, [System.Text.UTF8Encoding]::new($false))
 
             Write-Host "DEBUG: Modified app.json written to disk"
+
+            # Verify the write
+            $verifyContent = [System.IO.File]::ReadAllText($originalAppJson)
+            $verifyJson = $verifyContent | ConvertFrom-Json
+            Write-Host "DEBUG: Verified - disk has $($verifyJson.dependencies.Count) dependencies"
 
             Push-Location $currentAppFolder
             try {
