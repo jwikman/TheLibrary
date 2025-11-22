@@ -153,6 +153,10 @@ $appFolders | ForEach-Object {
     }
 
     # Filter out the main app dependency and any invalid entries before passing to Paket
+    Write-Host "DEBUG: Processing dependencies for $($_)"
+    Write-Host "DEBUG: Main app name to exclude: $($AppManifestObject.name)"
+    Write-Host "DEBUG: Total dependencies in app.json: $($ManifestObject.dependencies.Count)"
+
     $dependenciesToDownload = @($ManifestObject.dependencies | Where-Object {
         $_ -and
         $_.name -and
@@ -161,6 +165,8 @@ $appFolders | ForEach-Object {
         ($_.name -ne $AppManifestObject.name)
     })
 
+    Write-Host "DEBUG: Dependencies after filtering: $($dependenciesToDownload.Count)"
+
     if ($dependenciesToDownload.Count -gt 0) {
         # Use Paket CLI via NVRAppDevOps to download dependencies
         Write-Host "Downloading $($dependenciesToDownload.Count) dependencies for $_ using Paket CLI..."
@@ -168,50 +174,60 @@ $appFolders | ForEach-Object {
         $dependenciesToDownload | ForEach-Object { Write-Host "  - $($_.publisher).$($_.name) ($($_.version))" }
 
         # Create a temporary app.json with filtered dependencies
-        $tempAppJson = Join-Path $currentAppFolder "app.json.paket"
         $originalAppJson = Join-Path $currentAppFolder "app.json"
         $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
 
-        # Create a proper deep copy by serializing and deserializing
-        $modifiedManifest = $ManifestObject | ConvertTo-Json -Depth 10 | ConvertFrom-Json
-        $modifiedManifest.dependencies = @($dependenciesToDownload | ForEach-Object {
-            [PSCustomObject]@{
-                id = $_.id
-                publisher = $_.publisher
-                name = $_.name
-                version = $_.version
-            }
-        })
-        $modifiedManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $tempAppJson -Encoding UTF8
+        # Backup original
+        Copy-Item -Path $originalAppJson -Destination $backupAppJson -Force
 
-        # Temporarily swap app.json files
-        Move-Item -Path $originalAppJson -Destination $backupAppJson -Force
-        Move-Item -Path $tempAppJson -Destination $originalAppJson -Force
-
-        Push-Location $currentAppFolder
         try {
-            # Invoke-PaketForAL will:
-            # 1. Read app.json and create paket.dependencies file
-            # 2. Resolve dependency tree
-            # 3. Download all dependencies (including transitive) to 'Packages' folder
-            # 4. Create paket.lock for reproducible builds
-            Invoke-PaketForAL -Sources $nugetSources -PaketExePath $paketFolder -Verbose
+            # Create a proper deep copy by serializing and deserializing
+            $modifiedManifest = $ManifestObject | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+            $modifiedManifest.dependencies = @($dependenciesToDownload | ForEach-Object {
+                [PSCustomObject]@{
+                    id = $_.id
+                    publisher = $_.publisher
+                    name = $_.name
+                    version = $_.version
+                }
+            })
 
-            # Copy .app files from Packages folder to .alpackages folder for AL compiler
-            $packagesFolder = Join-Path $currentAppFolder "Packages"
-            if (Test-Path -Path $packagesFolder) {
-                Get-ChildItem -Path $packagesFolder -Filter *.app -Recurse | ForEach-Object {
-                    $targetPath = Join-Path $packagecachepath $_.Name
-                    if (!(Test-Path -Path $targetPath)) {
-                        Write-Host "Copy $($_.Name) to .alpackages"
-                        Copy-Item -Path $_.FullName -Destination $packagecachepath -Force
+            Write-Host "DEBUG: Modified manifest dependencies count: $($modifiedManifest.dependencies.Count)"
+            $modifiedManifest.dependencies | ForEach-Object {
+                Write-Host "DEBUG:   - $($_.publisher).$($_.name) has id=$($_.id), publisher=$($_.publisher), name=$($_.name), version=$($_.version)"
+            }
+
+            # Overwrite app.json with filtered dependencies
+            $modifiedManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $originalAppJson -Encoding UTF8
+
+            Write-Host "DEBUG: Modified app.json written to disk"
+
+            Push-Location $currentAppFolder
+            try {
+                # Invoke-PaketForAL will:
+                # 1. Read app.json and create paket.dependencies file
+                # 2. Resolve dependency tree
+                # 3. Download all dependencies (including transitive) to 'Packages' folder
+                # 4. Create paket.lock for reproducible builds
+                Invoke-PaketForAL -Sources $nugetSources -PaketExePath $paketFolder -Verbose
+
+                # Copy .app files from Packages folder to .alpackages folder for AL compiler
+                $packagesFolder = Join-Path $currentAppFolder "Packages"
+                if (Test-Path -Path $packagesFolder) {
+                    Get-ChildItem -Path $packagesFolder -Filter *.app -Recurse | ForEach-Object {
+                        $targetPath = Join-Path $packagecachepath $_.Name
+                        if (!(Test-Path -Path $targetPath)) {
+                            Write-Host "Copy $($_.Name) to .alpackages"
+                            Copy-Item -Path $_.FullName -Destination $packagecachepath -Force
+                        }
                     }
                 }
             }
+            finally {
+                Pop-Location
+            }
         }
         finally {
-            Pop-Location
-
             # Restore original app.json
             if (Test-Path -Path $backupAppJson) {
                 Move-Item -Path $backupAppJson -Destination $originalAppJson -Force
