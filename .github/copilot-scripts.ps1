@@ -137,7 +137,6 @@ if ($testAppExists) {
 $appFolders | ForEach-Object {
     $currentAppFolder = Join-Path ($projectFolder) $_ -Resolve
     $ManifestObject = Get-Content (Join-Path $currentAppFolder "app.json") -Encoding UTF8 | ConvertFrom-Json
-    $applicationVersion = $ManifestObject.Application
     $rulesetFile = Join-Path $currentAppFolder '.vscode\nab.ruleset.json' -Resolve
 
     $packagecachepath = Join-Path $currentAppFolder ".alpackages/"
@@ -159,6 +158,7 @@ $appFolders | ForEach-Object {
         $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
         Move-Item -Path $originalAppJson -Destination $backupAppJson -Force
         Move-Item -Path $tempAppJson -Destination $originalAppJson -Force
+        Get-Content -Path $originalAppJson -Encoding UTF8 | Write-Host
     }
 
     # Use Paket CLI via NVRAppDevOps to download dependencies
