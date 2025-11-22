@@ -52,19 +52,19 @@ if (!(Test-Path -Path $paketFolder)) {
     New-Item -Path $paketFolder -ItemType Directory -Force | Out-Null
 }
 
-$paketExe = if ($IsLinux) {
-    Join-Path $paketFolder "paket"
-} else {
-    Join-Path $paketFolder "paket.exe"
-}
+$paketExeName = if ($IsLinux) { "paket" } else { "paket.exe" }
+$paketExe = Join-Path $paketFolder $paketExeName
 
 if (!(Test-Path -Path $paketExe)) {
     Write-Host "Downloading Paket CLI..."
+    # Download the bootstrapper which works on both Windows and Linux
     $paketUrl = "https://github.com/fsprojects/Paket/releases/latest/download/paket.exe"
-    Invoke-WebRequest -Uri $paketUrl -OutFile $paketExe
+    $downloadPath = Join-Path $paketFolder "paket.exe"
+    Invoke-WebRequest -Uri $paketUrl -OutFile $downloadPath
 
     if ($IsLinux) {
-        # Make it executable on Linux
+        # On Linux, rename to remove .exe and make executable
+        Move-Item -Path $downloadPath -Destination $paketExe -Force
         chmod +x $paketExe
     }
 }
