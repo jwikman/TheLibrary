@@ -100,6 +100,8 @@ table 70303 "LIB Book"
         {
             Caption = 'Available Quantity';
             ToolTip = 'Specifies the number of copies currently available for loan.';
+            FieldClass = FlowField;
+            CalcFormula = sum("LIB Book Loan Ledger Entry".Quantity where("Book No." = field("No.")));
             Editable = false;
         }
         field(9; Description; Text[250])
