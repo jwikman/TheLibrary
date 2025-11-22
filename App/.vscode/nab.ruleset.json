@@ -1,0 +1,16 @@
+{
+    "name": "NAB ruleset",
+    "includedRuleSets": [
+        {
+            "action": "Default",
+            "path": "./LinterCop.ruleset.json"
+        }
+    ],
+    "rules": [
+        {
+            "id": "AA0219",
+            "action": "Warning",
+            "justification": "The Tooltip property of Fields should start with 'Specifies'."
+        }
+    ]
+}

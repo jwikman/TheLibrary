@@ -1,0 +1,9 @@
+# User specific files
+.vscode/launch.json
+.vscode/rad.json
+permissionsAnalyzer.json
+.snapshots/*
+
+# Binary app files
+/*.app
+.alpackages/*.app

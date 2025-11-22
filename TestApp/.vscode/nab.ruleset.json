@@ -1,0 +1,15 @@
+{
+    "name": "NAB ruleset",
+    "rules": [
+        {
+            "id": "AA0210",
+            "action": "None",
+            "justification": "Suboptimal index ok in test app."
+        },
+        {
+            "id": "AA0218",
+            "action": "None",
+            "justification": "ToolTips not needed in test app"
+        }
+    ]
+}
