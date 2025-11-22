@@ -143,31 +143,67 @@ $appFolders | ForEach-Object {
         New-Item -Path $packagecachepath -ItemType Directory -Force | Out-Null
     }
 
-    # Use Paket CLI via NVRAppDevOps to download dependencies
-    Write-Host "Downloading dependencies for $_ using Paket CLI..."
-    Push-Location $currentAppFolder
-    try {
-        # Invoke-PaketForAL will:
-        # 1. Read app.json and create paket.dependencies file
-        # 2. Resolve dependency tree
-        # 3. Download all dependencies (including transitive) to 'Packages' folder
-        # 4. Create paket.lock for reproducible builds
-        Invoke-PaketForAL -Sources $nugetSources -PaketExePath $paketFolder -Verbose
+    # For TestApp, copy the main app first
+    if ($_ -eq "TestApp") {
+        $mainAppFile = Get-ChildItem -Path $appFolder -Filter "*.app" | Select-Object -First 1
+        if ($mainAppFile) {
+            Write-Host "Copying main app $($mainAppFile.Name) to TestApp .alpackages"
+            Copy-Item -Path $mainAppFile.FullName -Destination $packagecachepath -Force
+        }
+    }
 
-        # Copy .app files from Packages folder to .alpackages folder for AL compiler
-        $packagesFolder = Join-Path $currentAppFolder "Packages"
-        if (Test-Path -Path $packagesFolder) {
-            Get-ChildItem -Path $packagesFolder -Filter *.app -Recurse | ForEach-Object {
-                $targetPath = Join-Path $packagecachepath $_.Name
-                if (!(Test-Path -Path $targetPath)) {
-                    Write-Host "Copy $($_.Name) to .alpackages"
-                    Copy-Item -Path $_.FullName -Destination $packagecachepath -Force
+    # Filter out the main app dependency before passing to Paket
+    $dependenciesToDownload = @($ManifestObject.dependencies | Where-Object { $_.name -ne $AppManifestObject.name })
+
+    if ($dependenciesToDownload.Count -gt 0) {
+        # Use Paket CLI via NVRAppDevOps to download dependencies
+        Write-Host "Downloading $($dependenciesToDownload.Count) dependencies for $_ using Paket CLI..."
+
+        # Create a temporary app.json with filtered dependencies
+        $tempAppJson = Join-Path $currentAppFolder "app.json.paket"
+        $originalAppJson = Join-Path $currentAppFolder "app.json"
+        $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
+
+        $modifiedManifest = $ManifestObject.PSObject.Copy()
+        $modifiedManifest.dependencies = $dependenciesToDownload
+        $modifiedManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $tempAppJson -Encoding UTF8
+
+        # Temporarily swap app.json files
+        Move-Item -Path $originalAppJson -Destination $backupAppJson -Force
+        Move-Item -Path $tempAppJson -Destination $originalAppJson -Force
+
+        Push-Location $currentAppFolder
+        try {
+            # Invoke-PaketForAL will:
+            # 1. Read app.json and create paket.dependencies file
+            # 2. Resolve dependency tree
+            # 3. Download all dependencies (including transitive) to 'Packages' folder
+            # 4. Create paket.lock for reproducible builds
+            Invoke-PaketForAL -Sources $nugetSources -PaketExePath $paketFolder -Verbose
+
+            # Copy .app files from Packages folder to .alpackages folder for AL compiler
+            $packagesFolder = Join-Path $currentAppFolder "Packages"
+            if (Test-Path -Path $packagesFolder) {
+                Get-ChildItem -Path $packagesFolder -Filter *.app -Recurse | ForEach-Object {
+                    $targetPath = Join-Path $packagecachepath $_.Name
+                    if (!(Test-Path -Path $targetPath)) {
+                        Write-Host "Copy $($_.Name) to .alpackages"
+                        Copy-Item -Path $_.FullName -Destination $packagecachepath -Force
+                    }
                 }
             }
         }
+        finally {
+            Pop-Location
+
+            # Restore original app.json
+            if (Test-Path -Path $backupAppJson) {
+                Move-Item -Path $backupAppJson -Destination $originalAppJson -Force
+            }
+        }
     }
-    finally {
-        Pop-Location
+    else {
+        Write-Host "No external dependencies to download for $_"
     }
 
     $AppFileName = (("{0}_{1}_{2}.app" -f $ManifestObject.publisher, $ManifestObject.name, $ManifestObject.version).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
