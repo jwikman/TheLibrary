@@ -46,6 +46,31 @@ if (-not (Get-Alias -Name Sort -ErrorAction SilentlyContinue)) {
 Install-Module -Name NVRAppDevOps -Scope CurrentUser -Force -AllowClobber
 Import-Module -Name NVRAppDevOps -DisableNameChecking
 
+# Download and setup Paket CLI
+$paketFolder = Join-Path $tempFolder "paket"
+if (!(Test-Path -Path $paketFolder)) {
+    New-Item -Path $paketFolder -ItemType Directory -Force | Out-Null
+}
+
+$paketExe = if ($IsLinux) {
+    Join-Path $paketFolder "paket"
+} else {
+    Join-Path $paketFolder "paket.exe"
+}
+
+if (!(Test-Path -Path $paketExe)) {
+    Write-Host "Downloading Paket CLI..."
+    $paketUrl = "https://github.com/fsprojects/Paket/releases/latest/download/paket.exe"
+    Invoke-WebRequest -Uri $paketUrl -OutFile $paketExe
+
+    if ($IsLinux) {
+        # Make it executable on Linux
+        chmod +x $paketExe
+    }
+}
+
+Write-Host "Paket CLI path: $paketFolder"
+
 # Define NuGet sources for Paket
 $nugetSources = @(
     "https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/MSApps/nuget/v3/index.json",
@@ -116,7 +141,7 @@ $appFolders | ForEach-Object {
         # 2. Resolve dependency tree
         # 3. Download all dependencies (including transitive) to 'Packages' folder
         # 4. Create paket.lock for reproducible builds
-        Invoke-PaketForAL -Sources $nugetSources -Verbose
+        Invoke-PaketForAL -Sources $nugetSources -PaketExePath $paketFolder -Verbose
 
         # Copy .app files from Packages folder to .alpackages folder for AL compiler
         $packagesFolder = Join-Path $currentAppFolder "Packages"
