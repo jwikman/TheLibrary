@@ -46,33 +46,12 @@ if (-not (Get-Alias -Name Sort -ErrorAction SilentlyContinue)) {
 Install-Module -Name NVRAppDevOps -Scope CurrentUser -Force -AllowClobber
 Import-Module -Name NVRAppDevOps -DisableNameChecking
 
-# Check if Paket is already installed as a .NET tool
-$paketInstalled = $false
-try {
-    $paketList = dotnet tool list --global | Out-String
-    if ($paketList -match 'paket\s+(\S+)') {
-        Write-Host "Paket already installed (version $($Matches[1]))"
-        $paketInstalled = $true
-    }
-}
-catch {
-    Write-Host "Could not check for existing Paket installation"
-}
-
-# Install Paket as a .NET tool if not already installed
-if (-not $paketInstalled) {
-    Write-Host "Installing Paket as .NET tool..."
-    dotnet tool install paket --global --version 8.1.3 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "Paket installation failed, trying update..."
-        dotnet tool update paket --global 2>&1 | Out-Null
-    }
-}
-
-# Determine the actual paket command location
-$paketCommand = Get-Command paket -ErrorAction SilentlyContinue
-if ($paketCommand) {
-    Write-Host "Paket command found at: $($paketCommand.Source)"
+# Install Paket as a .NET tool (works on both Windows and Linux)
+Write-Host "Installing Paket as .NET tool..."
+dotnet tool install paket --global --version 8.1.3 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Paket already installed, updating..."
+    dotnet tool update paket --global 2>&1 | Out-Null
 }
 
 # Create a wrapper script for paket.exe that NVRAppDevOps expects
@@ -82,7 +61,6 @@ if (!(Test-Path -Path $paketFolder)) {
 }
 
 $paketExe = Join-Path $paketFolder "paket.exe"
-Write-Host "Paket CLI path: $paketFolder"
 
 # Create a wrapper script that calls the .NET tool
 if ($IsLinux) {
@@ -165,105 +143,70 @@ $appFolders | ForEach-Object {
         New-Item -Path $packagecachepath -ItemType Directory -Force | Out-Null
     }
 
-    # For TestApp, copy the main app first
+    # For TestApp, copy the main app first and create a modified app.json without it in dependencies
+    $skipPaket = $false
     if ($_ -eq "TestApp") {
+        # Copy the main app to TestApp's .alpackages
         $mainAppFile = Get-ChildItem -Path $appFolder -Filter "*.app" | Select-Object -First 1
         if ($mainAppFile) {
             Write-Host "Copying main app $($mainAppFile.Name) to TestApp .alpackages"
             Copy-Item -Path $mainAppFile.FullName -Destination $packagecachepath -Force
+
+            # Create a temporary app.json without the main app dependency
+            $tempAppJson = Join-Path $currentAppFolder "app.json.paket"
+            $modifiedManifest = $ManifestObject | ConvertTo-Json -Depth 10
+            $modifiedManifestObj = $modifiedManifest | ConvertFrom-Json
+            $modifiedManifestObj.dependencies = @($ManifestObject.dependencies | Where-Object { $_.name -ne $AppManifestObject.name })
+            $modifiedManifestObj | ConvertTo-Json -Depth 10 | Set-Content -Path $tempAppJson -Encoding UTF8
+
+            # Temporarily rename app.json
+            $originalAppJson = Join-Path $currentAppFolder "app.json"
+            $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
+            Move-Item -Path $originalAppJson -Destination $backupAppJson -Force
+            Move-Item -Path $tempAppJson -Destination $originalAppJson -Force
+        }
+        else {
+            Write-Host "Warning: Main app not found, skipping Paket for TestApp"
+            $skipPaket = $true
         }
     }
 
-    # Filter out the main app dependency and any invalid entries before passing to Paket
-    Write-Host "DEBUG: Processing dependencies for $($_)"
-    Write-Host "DEBUG: Main app name to exclude: $($AppManifestObject.name)"
-    Write-Host "DEBUG: Total dependencies in app.json: $($ManifestObject.dependencies.Count)"
-
-    $dependenciesToDownload = @($ManifestObject.dependencies | Where-Object {
-        $_ -and
-        $_.name -and
-        $_.publisher -and
-        $_.version -and
-        ($_.name -ne $AppManifestObject.name)
-    })
-
-    Write-Host "DEBUG: Dependencies after filtering: $($dependenciesToDownload.Count)"
-
-    if ($dependenciesToDownload.Count -gt 0) {
-        # Use Paket CLI via NVRAppDevOps to download dependencies
-        Write-Host "Downloading $($dependenciesToDownload.Count) dependencies for $_ using Paket CLI..."
-        Write-Host "Dependencies to download:"
-        $dependenciesToDownload | ForEach-Object { Write-Host "  - $($_.publisher).$($_.name) ($($_.version))" }
-
-        # Create a temporary app.json with filtered dependencies
-        $originalAppJson = Join-Path $currentAppFolder "app.json"
-        $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
-
-        # Backup original
-        Copy-Item -Path $originalAppJson -Destination $backupAppJson -Force
-
+    # Use Paket CLI via NVRAppDevOps to download dependencies
+    if (-not $skipPaket) {
+        Write-Host "Downloading dependencies for $_ using Paket CLI..."
+        Push-Location $currentAppFolder
         try {
-            # Create a proper deep copy by serializing and deserializing
-            $modifiedManifest = $ManifestObject | ConvertTo-Json -Depth 10 | ConvertFrom-Json
-            $modifiedManifest.dependencies = @($dependenciesToDownload | ForEach-Object {
-                [PSCustomObject]@{
-                    id = $_.id
-                    publisher = $_.publisher
-                    name = $_.name
-                    version = $_.version
-                }
-            })
+            # Invoke-PaketForAL will:
+            # 1. Read app.json and create paket.dependencies file
+            # 2. Resolve dependency tree
+            # 3. Download all dependencies (including transitive) to 'Packages' folder
+            # 4. Create paket.lock for reproducible builds
+            Invoke-PaketForAL -Sources $nugetSources -PaketExePath $paketFolder -Verbose
 
-            Write-Host "DEBUG: Modified manifest dependencies count: $($modifiedManifest.dependencies.Count)"
-            $modifiedManifest.dependencies | ForEach-Object {
-                Write-Host "DEBUG:   - $($_.publisher).$($_.name) has id=$($_.id), publisher=$($_.publisher), name=$($_.name), version=$($_.version)"
-            }
-
-            # Overwrite app.json with filtered dependencies
-            $jsonContent = $modifiedManifest | ConvertTo-Json -Depth 10
-            [System.IO.File]::WriteAllText($originalAppJson, $jsonContent, [System.Text.UTF8Encoding]::new($false))
-
-            Write-Host "DEBUG: Modified app.json written to disk"
-
-            # Verify the write
-            $verifyContent = [System.IO.File]::ReadAllText($originalAppJson)
-            $verifyJson = $verifyContent | ConvertFrom-Json
-            Write-Host "DEBUG: Verified - disk has $($verifyJson.dependencies.Count) dependencies"
-
-            Push-Location $currentAppFolder
-            try {
-                # Invoke-PaketForAL will:
-                # 1. Read app.json and create paket.dependencies file
-                # 2. Resolve dependency tree
-                # 3. Download all dependencies (including transitive) to 'Packages' folder
-                # 4. Create paket.lock for reproducible builds
-                Invoke-PaketForAL -Sources $nugetSources -PaketExePath $paketFolder -Verbose
-
-                # Copy .app files from Packages folder to .alpackages folder for AL compiler
-                $packagesFolder = Join-Path $currentAppFolder "Packages"
-                if (Test-Path -Path $packagesFolder) {
-                    Get-ChildItem -Path $packagesFolder -Filter *.app -Recurse | ForEach-Object {
-                        $targetPath = Join-Path $packagecachepath $_.Name
-                        if (!(Test-Path -Path $targetPath)) {
-                            Write-Host "Copy $($_.Name) to .alpackages"
-                            Copy-Item -Path $_.FullName -Destination $packagecachepath -Force
-                        }
+            # Copy .app files from Packages folder to .alpackages folder for AL compiler
+            $packagesFolder = Join-Path $currentAppFolder "Packages"
+            if (Test-Path -Path $packagesFolder) {
+                Get-ChildItem -Path $packagesFolder -Filter *.app -Recurse | ForEach-Object {
+                    $targetPath = Join-Path $packagecachepath $_.Name
+                    if (!(Test-Path -Path $targetPath)) {
+                        Write-Host "Copy $($_.Name) to .alpackages"
+                        Copy-Item -Path $_.FullName -Destination $packagecachepath -Force
                     }
                 }
             }
-            finally {
-                Pop-Location
-            }
         }
         finally {
-            # Restore original app.json
-            if (Test-Path -Path $backupAppJson) {
-                Move-Item -Path $backupAppJson -Destination $originalAppJson -Force
+            Pop-Location
+
+            # Restore original app.json for TestApp
+            if ($_ -eq "TestApp") {
+                $originalAppJson = Join-Path $currentAppFolder "app.json"
+                $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
+                if (Test-Path -Path $backupAppJson) {
+                    Move-Item -Path $backupAppJson -Destination $originalAppJson -Force
+                }
             }
         }
-    }
-    else {
-        Write-Host "No external dependencies to download for $_"
     }
 
     $AppFileName = (("{0}_{1}_{2}.app" -f $ManifestObject.publisher, $ManifestObject.name, $ManifestObject.version).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
