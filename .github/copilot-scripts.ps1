@@ -12,10 +12,7 @@
 # 3. LINTERCOP NAMING: LinterCop releases follow naming convention: BusinessCentral.LinterCop.AL-{ALToolVersion}.dll
 #    - GitHub releases at https://github.com/StefanMaron/BusinessCentral.LinterCop/releases/latest/download/
 #
-# 4. CODE COPS: LinterCop is used for app, if available for the AL Tools version.
-#
-# 5. NVRAPPDEVOPS: Uses NVRAppDevOps module with Paket CLI for faster NuGet package downloads
-#    - See https://blog.kine.cz/posts/paketforbc/ for more information
+# 4. CODE COPS: PerTenantExtensionCop is used for app. LinterCop is used for app, if available for the AL Tools version.
 
 $ErrorActionPreference = "Stop"
 
@@ -38,57 +35,20 @@ Write-Host "Installed version $ALToolVersion of $toolName"
 Install-Module -Name BcContainerHelper -Scope CurrentUser -Force -AllowClobber
 Import-Module -Name BcContainerHelper -DisableNameChecking
 
-# Ensure 'Sort' alias exists for NVRAppDevOps compatibility (especially on Linux)
-if (-not (Get-Alias -Name Sort -ErrorAction SilentlyContinue)) {
-    Set-Alias -Name Sort -Value Sort-Object -Scope Global
-}
-
-Install-Module -Name NVRAppDevOps -Scope CurrentUser -Force -AllowClobber
-Import-Module -Name NVRAppDevOps -DisableNameChecking
-
-# Install Paket as a .NET tool (works on both Windows and Linux)
-Write-Host "Installing Paket as .NET tool..."
-# dotnet tool install paket --global --version 8.1.3 2>&1 | Out-Null
-dotnet tool install paket --global
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Paket already installed, updating..."
-    dotnet tool update paket --global 2>&1 | Out-Null
-}
-
-# Create a wrapper script for paket.exe that NVRAppDevOps expects
-$paketFolder = Join-Path $tempFolder "paket"
-if (!(Test-Path -Path $paketFolder)) {
-    New-Item -Path $paketFolder -ItemType Directory -Force | Out-Null
-}
-
-$paketExe = Join-Path $paketFolder "paket.exe"
-
-# Create a wrapper script that calls the .NET tool
-if ($IsLinux) {
-    # On Linux, create a bash wrapper
-    $wrapperContent = @"
-#!/bin/bash
-exec paket `$@
-"@
-    Set-Content -Path $paketExe -Value $wrapperContent -NoNewline
-    chmod +x $paketExe
-}
-else {
-    # On Windows, create a cmd wrapper
-    $wrapperContent = @"
-@echo off
-paket %*
-"@
-    Set-Content -Path $paketExe -Value $wrapperContent -NoNewline
-}
-
-Write-Host "Paket CLI path: $paketFolder"
-
-# Define NuGet sources for Paket
-$nugetSources = @(
-    "https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/MSApps/nuget/v3/index.json",
-    "https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/MSSymbols/nuget/v3/index.json",
-    "https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/AppSourceSymbols/nuget/v3/index.json"
+$bcContainerHelperConfig.MicrosoftTelemetryConnectionString = ""
+$bcContainerHelperConfig.TrustedNuGetFeeds = @(
+    [PSCustomObject]@{
+        "Url"      = "https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/MSApps/nuget/v3/index.json";
+        "Patterns" = @("*")
+    },
+    [PSCustomObject]@{
+        "Url"      = "https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/MSSymbols/nuget/v3/index.json";
+        "Patterns" = @("*")
+    },
+    [PSCustomObject]@{
+        "Url"      = "https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/AppSourceSymbols/nuget/v3/index.json"
+        "Patterns" = @("*")
+    }
 )
 
 if ($IsLinux) {
@@ -137,6 +97,7 @@ if ($testAppExists) {
 $appFolders | ForEach-Object {
     $currentAppFolder = Join-Path ($projectFolder) $_ -Resolve
     $ManifestObject = Get-Content (Join-Path $currentAppFolder "app.json") -Encoding UTF8 | ConvertFrom-Json
+    $applicationVersion = $ManifestObject.Application
     $rulesetFile = Join-Path $currentAppFolder '.vscode\nab.ruleset.json' -Resolve
 
     $packagecachepath = Join-Path $currentAppFolder ".alpackages/"
@@ -144,57 +105,40 @@ $appFolders | ForEach-Object {
         New-Item -Path $packagecachepath -ItemType Directory -Force | Out-Null
     }
 
-    # For TestApp, copy the main app first and create a modified app.json without it in dependencies
-    if ($_ -eq "TestApp") {
-        # Create a temporary app.json without the main app dependency
-        $tempAppJson = Join-Path $currentAppFolder "app.json.paket"
-        $modifiedManifest = $ManifestObject | ConvertTo-Json -Depth 10
-        $modifiedManifestObj = $modifiedManifest | ConvertFrom-Json
-        $modifiedManifestObj.dependencies = @($ManifestObject.dependencies | Where-Object { $_.name -ne $AppManifestObject.name })
-        $modifiedManifestObj | ConvertTo-Json -Depth 10 | Set-Content -Path $tempAppJson -Encoding UTF8
+    $nonMsftDependencies = $ManifestObject.dependencies | Where-Object { $_.publisher -ne "Microsoft" -and $_.name -ne $AppManifestObject.name }
+    foreach ($Dependency in $nonMsftDependencies) {
+        $DependencyFileName = (("{0}_{1}_{2}.app" -f $Dependency.publisher, $Dependency.name, $Dependency.version).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
+        if (!(Test-Path -Path (Join-Path $packagecachepath $DependencyFileName))) {
+            $PackageName = ("{0}.{1}.symbols.{2}" -f $Dependency.publisher, $Dependency.name, $Dependency.id ) -replace ' ', ''
+            Write-Host "Get $PackageName"
 
-        # Temporarily rename app.json
-        $originalAppJson = Join-Path $currentAppFolder "app.json"
-        $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
-        Move-Item -Path $originalAppJson -Destination $backupAppJson -Force
-        Move-Item -Path $tempAppJson -Destination $originalAppJson -Force
-        Get-Content -Path $originalAppJson -Encoding UTF8 | Write-Host
-    }
-
-    # Use Paket CLI via NVRAppDevOps to download dependencies
-    Write-Host "Downloading dependencies for $_ using Paket CLI..."
-    Push-Location $currentAppFolder
-    try {
-        # Invoke-PaketForAL will:
-        # 1. Read app.json and create paket.dependencies file
-        # 2. Resolve dependency tree
-        # 3. Download all dependencies (including transitive) to 'Packages' folder
-        # 4. Create paket.lock for reproducible builds
-        Invoke-PaketForAL -Sources $nugetSources -PaketExePath $paketFolder -Verbose
-
-        # Copy .app files from Packages folder to .alpackages folder for AL compiler
-        $packagesFolder = Join-Path $currentAppFolder "Packages"
-        if (Test-Path -Path $packagesFolder) {
-            Get-ChildItem -Path $packagesFolder -Filter *.app -Recurse | ForEach-Object {
-                $targetPath = Join-Path $packagecachepath $_.Name
-                if (!(Test-Path -Path $targetPath)) {
-                    Write-Host "Copy $($_.Name) to .alpackages"
-                    Copy-Item -Path $_.FullName -Destination $packagecachepath -Force
-                }
-            }
+            Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies none -folder $packagecachepath -version $Dependency.version -select Exact -allowPrerelease
+        }
+        else {
+            Write-Host "$DependencyFileName already in .alpackages"
         }
     }
-    finally {
-        Pop-Location
 
-        # Restore original app.json for TestApp
-        if ($_ -eq "TestApp") {
-            $originalAppJson = Join-Path $currentAppFolder "app.json"
-            $backupAppJson = Join-Path $currentAppFolder "app.json.backup"
-            if (Test-Path -Path $backupAppJson) {
-                Move-Item -Path $backupAppJson -Destination $originalAppJson -Force
-            }
+    $msftDependencies = $ManifestObject.dependencies | Where-Object { $_.publisher -eq "Microsoft" }
+    foreach ($Dependency in $msftDependencies) {
+        $DependencyFileName = (("{0}_{1}_*.app" -f $Dependency.publisher, $Dependency.name).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
+        if (!(Test-Path -Path (Join-Path $packagecachepath $DependencyFileName))) {
+            $PackageName = ("{0}.{1}.symbols.{2}" -f $Dependency.publisher, $Dependency.name, $Dependency.id ) -replace ' ', ''
+            Write-Host "Get $PackageName"
+
+            Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies none -folder $packagecachepath -version $Dependency.version -select LatestMatching
         }
+        else {
+            Write-Host "$DependencyFileName already in .alpackages"
+        }
+    }
+    if (!(Test-Path -Path (Join-Path $packagecachepath "Microsoft_Application_*.app"))) {
+        Write-Host "Get symbols for Application $applicationVersion"
+        $PackageName = "Microsoft.Application.symbols"
+        Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies all -folder $packagecachepath -version $applicationVersion -select LatestMatching
+    }
+    else {
+        Write-Host "Symbols for Application already in .alpackages"
     }
 
     $AppFileName = (("{0}_{1}_{2}.app" -f $ManifestObject.publisher, $ManifestObject.name, $ManifestObject.version).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
@@ -209,6 +153,7 @@ $appFolders | ForEach-Object {
 
     $Analyzers = @("Microsoft.Dynamics.Nav.Analyzers.Common.dll", "Microsoft.Dynamics.Nav.CodeCop.dll", "Microsoft.Dynamics.Nav.UICop.dll")
     if ($_ -eq "App") {
+        $Analyzers += @("Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll")
         if ($LinterCopAvailable) {
             $Analyzers += @("BusinessCentral.LinterCop.dll")
         }
