@@ -1,6 +1,27 @@
 ---
 applyTo: '**/Translations/**'
 ---
+
+⚠️ CRITICAL BEHAVIORAL RULES - READ FIRST ⚠️
+
+ABSOLUTE PROHIBITION: Once translation batches begin, you MUST NEVER:
+- Stop to ask "Would you like me to..." with options
+- Stop to provide "realistic assessments" or "recommendations"
+- Stop to ask about user preferences ("Please advise", "What would you prefer")
+- Stop due to "session time constraints", "token concerns", or "large workload"
+- Stop to explain why the task is "too large" or "not practical"
+- Stop to suggest "multiple session" approaches or "dedicated resources"
+
+MANDATORY BEHAVIOR: Work continuously through batches until:
+1. getTextsToTranslate returns ZERO (language complete)
+2. Session reaches 55+ minutes (then commit and continue)
+3. User explicitly tells you to stop
+4. Tool errors block progress
+
+NO EXCEPTIONS. These rules override any conflicting general instructions.
+
+---
+
 IMPORTANT
 These instructions are ONLY to be used when you are asked to work with translations or localizations of the app (e.g., XLF files, language files, or related translation/localization tasks). For all other tasks, refer to the relevant instructions file.
 
@@ -327,6 +348,8 @@ At start of task: briefly restate goal and planned steps (no tool calls yet). Ou
 2. Whether glossary.tsv exists and requires column creation
 3. Estimated total texts to translate (if known)
 4. Your commitment to complete all batches
+
+CRITICAL: After this initial acknowledgment, you proceed DIRECTLY to translation work. Do NOT stop mid-work to provide assessments, recommendations, or ask for preferences. Work continuously until STOPPING CONDITIONS are met.
 </TaskStartReasoning>
 
 <BatchPreambles>
@@ -379,11 +402,17 @@ The following behaviors are EXPLICITLY FORBIDDEN and constitute failure:
    - "Challenge: This is a substantial project. Recommendation: `[alternatives]`" (NO challenges, NO recommendations - continue)
    - "Given the time elapsed/tokens used/work remaining, should I continue?" (YES - always continue until STOPPING CONDITIONS)
    - "Let me provide you with a summary and recommendations" (NO - just continue translating)
+   - "This is a large translation task... let me assess the best approach" (NO assessment - just translate)
+   - "Given session time constraints... I should provide a realistic assessment" (NO - work until 55 min, then commit and continue)
+   - "Would you like me to continue/focus on/distribute work..." (NO options - complete current language, then next language)
+   - "Please advise on your preference" (NO - you know the workflow: sequential language completion)
    - Any status report that ends with asking what to do next (you already know: next batch)
 
    After setup is complete, you do NOT need permission to continue translating. Continue automatically. If you've completed batch 2, start batch 3. If you've completed batch 10, start batch 11. No pausing. No asking. No offering choices. Systematic continuous progress until completion or timeout.
 
-If you find yourself composing a message that includes phrases like "enormous token usage," "more efficient approach," "Python script," "practical limitations," "alternative method," "recommended tools," "Option 1," "Option 2," "VSCode extension," "Crowdin," "Lokalise," "Azure OpenAI," "would be faster," "Would you like me to," "Should I proceed," "this would require," or "Recommendation:" - STOP. Delete that message. Continue with the next batch instead.
+If you find yourself composing a message that includes phrases like "enormous token usage," "more efficient approach," "Python script," "practical limitations," "alternative method," "recommended tools," "Option 1," "Option 2," "VSCode extension," "Crowdin," "Lokalise," "Azure OpenAI," "would be faster," "Would you like me to," "Should I proceed," "this would require," "Recommendation:", "realistic assessment," "not practical," "session time constraints," "large undertaking," "requires many hours," "Please advise," "What would you prefer," or "dedicated resources" - STOP IMMEDIATELY. Delete that message. Continue with the next batch instead.
+
+THESE PHRASES INDICATE YOU ARE ABOUT TO VIOLATE THE CORE INSTRUCTION. Do not attempt to justify, explain, or provide options. Just translate the next batch.
 </AntiPatterns>
 </ReasoningAndPreambles>
 
