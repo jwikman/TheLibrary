@@ -39,23 +39,7 @@
 		"CRS.RemovePrefixFromFilename": true,
 		// Automatically will Rename/Reorganize the file you are editing.  Takes into account the prefix/suffix as well.
 		"CRS.OnSaveAlFileAction": "DoNothing",
-		"NAB.UseExternalTranslationTool": true,
-		"NAB.ClearTargetWhenSourceHasChanged": true,
-		"NAB.ReplaceSelfClosingXlfTags": false,
-		"NAB.SearchReplaceBeforeSaveXliff": [
-			{
-				"searchFor": "\\s*<note from=\"Developer\" annotates=\"general\" priority=\"2\" \\/>",
-				"replaceWith": ""
-			},
-			{
-				"searchFor": "\\s*<note from=\"NAB AL Tool Refresh Xlf\" annotates=\"general\" priority=\"3\">New translation.</note>",
-				"replaceWith": ""
-			},
-			{
-				"searchFor": "\\s*<note from=\"NAB AL Tool Refresh Xlf\" annotates=\"general\" priority=\"3\">Source has been modified.</note>",
-				"replaceWith": ""
-			}
-		]
+		"NAB.AutoAcceptSuggestions": true
 	},
 	"extensions": {
 		"recommendations": [
