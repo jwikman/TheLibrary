@@ -6,6 +6,8 @@ It contains a sample AL project that demonstrates how to use the GitHub Copilot 
 
 ## Setup GitHub Copilot Coding Agent
 
+### Configure Copilot in the Repository settings
+
 Configure the NAB AL Tools MCP Server for the Copilot Coding Agent by using the following MCP Configuration in your repository settings on GitHub:
 
 ```json
@@ -28,3 +30,21 @@ Configure the NAB AL Tools MCP Server for the Copilot Coding Agent by using the 
 
 Add the path to the BaseApp translation files to _Custom allowlist_:
 `https://nabaltools.file.core.windows.net/shared/base_app_lang_files`
+
+### Setup files in the repository
+
+Copy the following file from this repository to your repository (create the folders if they do not exist):
+
+- `.github\instructions\translate-xlf.instructions.md`
+- `.github\instructions\mcp-servers.instructions.md`
+- `.github\workflows\copilot-setup-steps.yml`
+- `.github\initialize-coding-agent.ps1`
+- `.github\copilot-instructions.md`
+
+### Start using Copilot Coding Agent
+
+After above setup, you can start using the Copilot Coding Agent in your repository by
+assigning an issue or a work item to `Copilot` or by mentioning `@copilot` in a comment.
+
+- "@Copilot, please make sure that all texts are translated."
+- "@Copilot, please translate this app into French and German."
