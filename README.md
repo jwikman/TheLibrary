@@ -1,25 +1,16 @@
-# DirectionsWebinar2025
-Directions Webinar: Benefitting from Open Source 2025-11-25
+# The Library
 
-TODO: Add description etc.
+This repository was created for the Directions Webinar: Benefitting from Open Source 2025-11-25
+
+It contains a sample AL project that demonstrates how to use the GitHub Copilot Coding Agent with NAB AL Tools, either locally or with GitHub Copilot Coding Agent in the Cloud.
 
 ## Setup GitHub Copilot Coding Agent
 
-Add the path to the BaseApp translation files to _Custom allowlist_:
-`https://nabaltools.file.core.windows.net/shared/base_app_lang_files`
-
-Configure the MCP Servers for the Copilot Coding Agent by using the following MCP Configuration:
+Configure the NAB AL Tools MCP Server for the Copilot Coding Agent by using the following MCP Configuration in your repository settings on GitHub:
 
 ```json
 {
     "mcpServers": {
-        "MS-Learn": {
-            "type": "http",
-            "url": "https://learn.microsoft.com/api/mcp",
-            "tools": [
-                "*"
-            ]
-        },
         "nab-al-tools-mcp": {
             "type": "local",
             "command": "npx",
@@ -30,18 +21,10 @@ Configure the MCP Servers for the Copilot Coding Agent by using the following MC
             "tools": [
                 "*"
             ]
-        },
-        "bc-code-intel": {
-            "type": "local",
-            "command": "npx",
-            "args": [
-                "-y",
-                "bc-code-intelligence-mcp"
-            ],
-            "tools": [
-                "*"
-            ]
         }
     }
 }
 ```
+
+Add the path to the BaseApp translation files to _Custom allowlist_:
+`https://nabaltools.file.core.windows.net/shared/base_app_lang_files`

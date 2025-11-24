@@ -270,7 +270,7 @@ Every AL object will include extensive translatable content:
 - ~10-15 validation messages
 - ~5-10 confirmation/information messages
 
-**Total translatable strings: ~150-200 texts**
+Total translatable strings: ~150-200 texts
 
 ## Development Phases
 

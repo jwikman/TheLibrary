@@ -3,7 +3,7 @@
 **Date:** 2025-11-22
 **App:** The Library
 **Project Plan:** [the-library-app-plan.md](./the-library-app-plan.md)
-**Repository:** DirectionsWebinar2025
+**Repository:** TheLibrary
 
 ## Overview
 
@@ -16,8 +16,8 @@ This guide provides instructions for implementing The Library Business Central A
 Set bc-code-intel workspace context:
 
 ```
-Workspace root: [path to repo]\DirectionsWebinar2025
-App source: [path to repo]\DirectionsWebinar2025\App
+Workspace root: [path to repo]\TheLibrary
+App source: [path to repo]\TheLibrary\App
 ```
 
 ### 2. Read Project Context
@@ -149,7 +149,7 @@ Follow the [AL Vibe Coding Rules](https://alguidelines.dev/docs/agentic-coding/v
 
 ```
 mcp_bc-code-intel_set_workspace_info
-workspace_root: "[path to repository]\\DirectionsWebinar2025"
+workspace_root: "[path to repository]\\TheLibrary"
 available_mcps: []
 ```
 
