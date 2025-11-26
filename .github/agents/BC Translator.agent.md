@@ -14,6 +14,7 @@ tools:
     "nabsolutions.nab-al-tools/createLanguageXlf",
     "nabsolutions.nab-al-tools/getGlossaryTerms",
   ]
+target: vscode
 ---
 
 # BC Translator Agent Instructions
