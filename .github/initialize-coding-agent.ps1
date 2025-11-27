@@ -20,15 +20,21 @@ $tempFolder = Join-Path $PWD.Path ".github/.tmp"
 if (!(Test-Path -Path $tempFolder)) {
     New-Item -Path $tempFolder -ItemType Directory -Force | Out-Null
 }
-
+$version = $null
 if ($IsLinux) {
     $toolName = "Microsoft.Dynamics.BusinessCentral.Development.Tools.Linux"
+    $version = "17.0.28.6483-beta"
 }
 else {
     $toolName = "Microsoft.Dynamics.BusinessCentral.Development.Tools"
 }
 Write-Host "Install $toolName"
-dotnet tool install $toolName --global --prerelease
+if ($version) {
+    dotnet tool install $toolName --global --prerelease --version $version
+}
+else {
+    dotnet tool install $toolName --global --prerelease
+}
 $ALToolVersion = (dotnet tool list $toolName --global | Select-String -Pattern "$toolName" | ForEach-Object { $_ -split '\s+' })[1]
 Write-Host "Installed version $ALToolVersion of $toolName"
 
