@@ -30,7 +30,7 @@ else {
 }
 Write-Host "Install $toolName"
 if ($version) {
-    dotnet tool install $toolName --global --prerelease --version $version
+    dotnet tool install $toolName --global --version $version
 }
 else {
     dotnet tool install $toolName --global --prerelease
