@@ -117,41 +117,41 @@ $appFolders | ForEach-Object {
         New-Item -Path $packagecachepath -ItemType Directory -Force | Out-Null
     }
 
-    $nonMsftDependencies = $ManifestObject.dependencies | Where-Object { $_.publisher -ne "Microsoft" -and $_.name -ne $AppManifestObject.name }
-    foreach ($Dependency in $nonMsftDependencies) {
-        $DependencyFileName = (("{0}_{1}_{2}.app" -f $Dependency.publisher, $Dependency.name, $Dependency.version).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
-        if (!(Test-Path -Path (Join-Path $packagecachepath $DependencyFileName))) {
-            $PackageName = ("{0}.{1}.symbols.{2}" -f $Dependency.publisher, $Dependency.name, $Dependency.id ) -replace ' ', ''
-            Write-Host "Get $PackageName"
+    # $nonMsftDependencies = $ManifestObject.dependencies | Where-Object { $_.publisher -ne "Microsoft" -and $_.name -ne $AppManifestObject.name }
+    # foreach ($Dependency in $nonMsftDependencies) {
+    #     $DependencyFileName = (("{0}_{1}_{2}.app" -f $Dependency.publisher, $Dependency.name, $Dependency.version).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
+    #     if (!(Test-Path -Path (Join-Path $packagecachepath $DependencyFileName))) {
+    #         $PackageName = ("{0}.{1}.symbols.{2}" -f $Dependency.publisher, $Dependency.name, $Dependency.id ) -replace ' ', ''
+    #         Write-Host "Get $PackageName"
 
-            Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies none -folder $packagecachepath -version $Dependency.version -select Exact -allowPrerelease
-        }
-        else {
-            Write-Host "$DependencyFileName already in .alpackages"
-        }
-    }
+    #         Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies none -folder $packagecachepath -version $Dependency.version -select Exact -allowPrerelease
+    #     }
+    #     else {
+    #         Write-Host "$DependencyFileName already in .alpackages"
+    #     }
+    # }
 
-    $msftDependencies = $ManifestObject.dependencies | Where-Object { $_.publisher -eq "Microsoft" }
-    foreach ($Dependency in $msftDependencies) {
-        $DependencyFileName = (("{0}_{1}_*.app" -f $Dependency.publisher, $Dependency.name).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
-        if (!(Test-Path -Path (Join-Path $packagecachepath $DependencyFileName))) {
-            $PackageName = ("{0}.{1}.symbols.{2}" -f $Dependency.publisher, $Dependency.name, $Dependency.id ) -replace ' ', ''
-            Write-Host "Get $PackageName"
+    # $msftDependencies = $ManifestObject.dependencies | Where-Object { $_.publisher -eq "Microsoft" }
+    # foreach ($Dependency in $msftDependencies) {
+    #     $DependencyFileName = (("{0}_{1}_*.app" -f $Dependency.publisher, $Dependency.name).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
+    #     if (!(Test-Path -Path (Join-Path $packagecachepath $DependencyFileName))) {
+    #         $PackageName = ("{0}.{1}.symbols.{2}" -f $Dependency.publisher, $Dependency.name, $Dependency.id ) -replace ' ', ''
+    #         Write-Host "Get $PackageName"
 
-            Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies none -folder $packagecachepath -version $Dependency.version -select LatestMatching
-        }
-        else {
-            Write-Host "$DependencyFileName already in .alpackages"
-        }
-    }
-    if (!(Test-Path -Path (Join-Path $packagecachepath "Microsoft_Application_*.app"))) {
-        Write-Host "Get symbols for Application $applicationVersion"
-        $PackageName = "Microsoft.Application.symbols"
-        Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies all -folder $packagecachepath -version $applicationVersion -select LatestMatching
-    }
-    else {
-        Write-Host "Symbols for Application already in .alpackages"
-    }
+    #         Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies none -folder $packagecachepath -version $Dependency.version -select LatestMatching
+    #     }
+    #     else {
+    #         Write-Host "$DependencyFileName already in .alpackages"
+    #     }
+    # }
+    # if (!(Test-Path -Path (Join-Path $packagecachepath "Microsoft_Application_*.app"))) {
+    #     Write-Host "Get symbols for Application $applicationVersion"
+    #     $PackageName = "Microsoft.Application.symbols"
+    #     Download-BcNuGetPackageToFolder -packageName $PackageName -downloadDependencies all -folder $packagecachepath -version $applicationVersion -select LatestMatching
+    # }
+    # else {
+    #     Write-Host "Symbols for Application already in .alpackages"
+    # }
 
     $AppFileName = (("{0}_{1}_{2}.app" -f $ManifestObject.publisher, $ManifestObject.name, $ManifestObject.version).Split([System.IO.Path]::GetInvalidFileNameChars()) -join '')
     $appPath = $(Join-Path $tempFolder $AppFileName)
@@ -214,17 +214,16 @@ al compile $($ParametersList -join " ")
 }
 
 # Setup BC Container if requested
-if ($SetupContainer) {
-    Write-Host ""
-    Write-Host "Setting up Business Central container..." -ForegroundColor Green
-    $setupContainerScript = Join-Path $PSScriptRoot "setup-bc-container.ps1"
-    
-    if (Test-Path $setupContainerScript) {
-        & $setupContainerScript -containerName $ContainerName
-    } else {
-        Write-Warning "Container setup script not found: $setupContainerScript"
-        Write-Host "You can manually run the container setup using:" -ForegroundColor Yellow
-        Write-Host "  .\setup-bc-container.ps1" -ForegroundColor Cyan
-    }
+Write-Host ""
+Write-Host "Setting up Business Central container..." -ForegroundColor Green
+$setupContainerScript = Join-Path $PSScriptRoot "setup-bc-container.ps1"
+
+if (Test-Path $setupContainerScript) {
+    & $setupContainerScript -containerName $ContainerName
+}
+else {
+    Write-Warning "Container setup script not found: $setupContainerScript"
+    Write-Host "You can manually run the container setup using:" -ForegroundColor Yellow
+    Write-Host "  .\setup-bc-container.ps1" -ForegroundColor Cyan
 }
 
