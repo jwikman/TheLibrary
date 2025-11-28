@@ -39,9 +39,9 @@ if (!(Get-Module -Name BcContainerHelper -ListAvailable)) {
 Import-Module -Name BcContainerHelper -DisableNameChecking
 
 # Check if container exists
-$container = $containerName -in (Get-BcContainers)
+$containerExists = $containerName -in (Get-BcContainers)
 
-if (!$container -and $Action -ne "GetInfo") {
+if (!$containerExists -and $Action -ne "GetInfo") {
     Write-Error "Container '$containerName' not found. Run .\.github\setup-bc-container.ps1 first."
 }
 
@@ -186,7 +186,7 @@ switch ($Action) {
     }
 
     "GetInfo" {
-        if ($container) {
+        if ($containerExists) {
             $containerInfo = Get-BcContainerNavVersion -containerName $containerName
             $webclientUrl = Get-BcContainerServerUrl -containerName $containerName
             $isRunning = (docker ps --filter "name=$containerName" --format "{{.Names}}") -eq $containerName
