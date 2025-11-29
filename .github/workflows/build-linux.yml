@@ -119,8 +119,15 @@ jobs:
                 echo "Skipping empty or missing file: $(basename "$nupkg")"
             fi
         done
+
+        # Debug: List what was extracted
+        echo "=== DEBUG: Extracted package contents ==="
+        find temp_packages/extracted -name "*.app" -type f
+        echo "=== END DEBUG ==="
+
         # Extract .app files from downloaded packages
         find temp_packages -name "*.app" -type f -exec cp {} App/.alpackages/ \;
+
         # Clean up temporary files
         rm -rf temp_packages
         DOWNLOAD_END=$(date +%s.%N)
@@ -128,9 +135,10 @@ jobs:
         echo "SYSTEM_DOWNLOAD_DURATION=$DOWNLOAD_DURATION" >> $GITHUB_ENV
         echo "SYSTEM_EXTRACT_DURATION=0" >> $GITHUB_ENV
         echo "BC symbols download took: $DOWNLOAD_DURATION seconds"
+
         # List downloaded symbols
         echo "Downloaded symbol packages:"
-        ls -la App/.alpackages/
+        ls -lah App/.alpackages/
 
     - name: Calculate total dependency time
       run: |
