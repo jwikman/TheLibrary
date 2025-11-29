@@ -38,7 +38,7 @@ jobs:
     - name: Install BC Development Tools for Linux
       run: |
         echo "Installing BC Development Tools for Linux..."
-        dotnet tool install -g Microsoft.Dynamics.BusinessCentral.Development.Tools.Linux --version 16.0.24.41895-beta
+        dotnet tool install -g Microsoft.Dynamics.BusinessCentral.Development.Tools.Linux --version 17.0.28.6483-beta
         # Ensure dotnet tools are in PATH
         export PATH="$PATH:$HOME/.dotnet/tools"
         echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
