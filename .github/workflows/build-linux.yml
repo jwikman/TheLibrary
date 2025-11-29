@@ -91,43 +91,22 @@ jobs:
         curl -L -s -o "temp_packages/microsoft.platform.symbols.nupkg" \
             "$BC_BASE_URL/microsoft.platform.symbols/$PLATFORM_VERSION/microsoft.platform.symbols.$PLATFORM_VERSION.nupkg" || echo "Failed to download Platform (System)"
 
-        # Test Framework packages (required by TestApp)
-        # Note: These packages may have different naming conventions (no .US suffix, spaces replaced with periods)
-        echo "Downloading test framework packages..."
+        # Test Framework symbol packages (required by TestApp for compilation)
+        echo "Downloading Microsoft.Library Assert.US.symbols (Test Framework)..."
+        curl -L -s -o "temp_packages/microsoft.library.assert.us.symbols.nupkg" \
+            "$BC_BASE_URL/microsoft.library.assert.us.symbols.dd0be2ea-f733-4d65-bb34-a28f4624fb14/$BC_VERSION/microsoft.library.assert.us.symbols.dd0be2ea-f733-4d65-bb34-a28f4624fb14.$BC_VERSION.nupkg" || echo "Failed to download Library Assert"
 
-        # Try various naming patterns for test framework packages
-        echo "Downloading Library Assert (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.library.assert.nupkg" \
-            "$BC_BASE_URL/microsoft.library.assert/$BC_VERSION/microsoft.library.assert.$BC_VERSION.nupkg" 2>&1 | head -1 || \
-        curl -L -s -o "temp_packages/microsoft.library.assert.nupkg" \
-            "$BC_BASE_URL/microsoft.library.assert.us.symbols/$BC_VERSION/microsoft.library.assert.us.symbols.$BC_VERSION.nupkg" 2>&1 | head -1 || \
-        echo "Failed to download Library Assert"
+        echo "Downloading Microsoft.Any.US.symbols (Test Framework)..."
+        curl -L -s -o "temp_packages/microsoft.any.us.symbols.nupkg" \
+            "$BC_BASE_URL/microsoft.any.us.symbols.e7320ebb-08b3-4406-b1ec-b4927d3e280b/$BC_VERSION/microsoft.any.us.symbols.e7320ebb-08b3-4406-b1ec-b4927d3e280b.$BC_VERSION.nupkg" || echo "Failed to download Any"
 
-        echo "Downloading Any (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.any.nupkg" \
-            "$BC_BASE_URL/microsoft.any/$BC_VERSION/microsoft.any.$BC_VERSION.nupkg" 2>&1 | head -1 || \
-        curl -L -s -o "temp_packages/microsoft.any.nupkg" \
-            "$BC_BASE_URL/microsoft.any.us.symbols/$BC_VERSION/microsoft.any.us.symbols.$BC_VERSION.nupkg" 2>&1 | head -1 || \
-        echo "Failed to download Any"
+        echo "Downloading Microsoft.Test Runner.US.symbols (Test Framework)..."
+        curl -L -s -o "temp_packages/microsoft.test.runner.us.symbols.nupkg" \
+            "$BC_BASE_URL/microsoft.test.runner.us.symbols.23de40a6-dfe8-4f80-80db-d70f83ce8caf/$BC_VERSION/microsoft.test.runner.us.symbols.23de40a6-dfe8-4f80-80db-d70f83ce8caf.$BC_VERSION.nupkg" || echo "Failed to download Test Runner"
 
-        echo "Downloading Test Runner (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.test.runner.nupkg" \
-            "$BC_BASE_URL/microsoft.test.runner/$BC_VERSION/microsoft.test.runner.$BC_VERSION.nupkg" 2>&1 | head -1 || \
-        curl -L -s -o "temp_packages/microsoft.test.runner.nupkg" \
-            "$BC_BASE_URL/microsoft.test.runner.us.symbols/$BC_VERSION/microsoft.test.runner.us.symbols.$BC_VERSION.nupkg" 2>&1 | head -1 || \
-        echo "Failed to download Test Runner"
-
-        echo "Downloading Library Variable Storage (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.library.variable.storage.nupkg" \
-            "$BC_BASE_URL/microsoft.library.variable.storage/$BC_VERSION/microsoft.library.variable.storage.$BC_VERSION.nupkg" 2>&1 | head -1 || \
-        curl -L -s -o "temp_packages/microsoft.library.variable.storage.nupkg" \
-            "$BC_BASE_URL/microsoft.library.variable.storage.us.symbols/$BC_VERSION/microsoft.library.variable.storage.us.symbols.$BC_VERSION.nupkg" 2>&1 | head -1 || \
-        echo "Failed to download Library Variable Storage"
-
-        # List downloaded files before extraction
-        echo "=== DEBUG: Downloaded .nupkg files ==="
-        ls -lh temp_packages/*.nupkg
-        echo "=== END DEBUG ==="
+        echo "Downloading Microsoft.Library Variable Storage.US.symbols (Test Framework)..."
+        curl -L -s -o "temp_packages/microsoft.library.variable.storage.us.symbols.nupkg" \
+            "$BC_BASE_URL/microsoft.library.variable.storage.us.symbols.5095f467-0a01-4b99-99d1-9ff1237d286f/$BC_VERSION/microsoft.library.variable.storage.us.symbols.5095f467-0a01-4b99-99d1-9ff1237d286f.$BC_VERSION.nupkg" || echo "Failed to download Library Variable Storage"
 
         # Extract .nupkg files (which are zip files)
         mkdir -p temp_packages/extracted
