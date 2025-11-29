@@ -377,9 +377,9 @@ jobs:
 
         # Execute test codeunit via OData API using PowerShell script
         # Running Library Author Tests (codeunit 70451)
-        # Note: OData port is 7048, SOAP/web services port is 7049
+        # Note: OData port is 7046, SOAP/web services port is 7047, Development port is 7049
         pwsh ./scripts/run-tests-odata.ps1 \
-          -BaseUrl "http://localhost:7048/BC" \
+          -BaseUrl "http://localhost:7046/BC" \
           -Tenant "default" \
           -Username "admin" \
           -Password "Admin123!" \
