@@ -120,11 +120,6 @@ jobs:
             fi
         done
 
-        # Debug: List what was extracted
-        echo "=== DEBUG: Extracted package contents ==="
-        find temp_packages/extracted -name "*.app" -type f
-        echo "=== END DEBUG ==="
-
         # Extract .app files from downloaded packages
         find temp_packages -name "*.app" -type f -exec cp {} App/.alpackages/ \;
 
@@ -302,6 +297,20 @@ jobs:
                 echo "⚠ Container became unhealthy - printing logs for investigation:"
                 docker compose ps
                 docker compose logs --tail=100
+                # Also check if BC Server process is running
+                echo ""
+                echo "Checking BC Server process status:"
+                docker compose exec -T bc pgrep -f "Microsoft.Dynamics.Nav.Server" || echo "BC Server process not found"
+                echo ""
+                echo "Checking initialization status:"
+                docker compose exec -T bc cat /home/bc-init-status.txt 2>/dev/null || echo "No initialization status file"
+            fi
+            # Every 30 seconds, show more detailed status
+            if [ $((ELAPSED % 30)) -eq 0 ] && [ $ELAPSED -gt 0 ]; then
+                echo "Extended status check at ${ELAPSED}s:"
+                echo "  Container health: $HEALTH_STATUS"
+                echo "  Last 10 log lines:"
+                docker compose logs --tail=10 bc
             fi
             echo "Container status: $HEALTH_STATUS (waited ${ELAPSED}s / ${MAX_WAIT}s)"
             PREV_HEALTH_STATUS="$HEALTH_STATUS"
@@ -322,6 +331,10 @@ jobs:
         docker compose ps
         docker compose logs
         CONTAINER_START_END=$(date +%s.%N)
+        CONTAINER_START_DURATION=$(echo "$CONTAINER_START_END - $CONTAINER_START_TIME" | bc -l | sed 's/^\./0./')
+        echo "CONTAINER_START_DURATION=$CONTAINER_START_DURATION" >> $GITHUB_ENV
+        echo "Container start took: $CONTAINER_START_DURATION seconds"
+        cd ..
     - name: Publish AL Extension to Container
       run: |
         echo "Publishing AL extensions to BC container..."
@@ -347,6 +360,16 @@ jobs:
         if [ -z "$TEST_APP_FILE" ]; then
             echo "ERROR: No test app file found for publishing"
             exit 1
+        fi
+        echo "Publishing test app: $TEST_APP_FILE"
+        curl -u "admin:Admin123!" \
+             -F "file=@$TEST_APP_FILE" \
+             "http://localhost:7049/BC/dev/apps?tenant=default&SchemaUpdateMode=synchronize&DependencyPublishingOption=default"
+
+        PUBLISH_END=$(date +%s.%N)
+        PUBLISH_DURATION=$(echo "$PUBLISH_END - $PUBLISH_START" | bc -l | sed 's/^\./0./')
+        echo "PUBLISH_DURATION=$PUBLISH_DURATION" >> $GITHUB_ENV
+        echo "Publishing took: $PUBLISH_DURATION seconds"
     - name: Run AL Tests in Container via OData
       run: |
         echo "Running AL tests in BC container via OData API..."
@@ -370,23 +393,7 @@ jobs:
         echo "Testing took: $TEST_DURATION seconds"
 
         # Exit with the test script's exit code
-        exit $TEST_EXIT_CODEp currently has no test codeunits, so this step is skipped for POC
-        # When test codeunits are added, update the CodeunitId parameter
-        # Note: OData port is 7048, SOAP/web services port is 7049
-        echo "Skipping test execution - no test codeunits in The Library app yet"
-        # pwsh ./scripts/run-tests-odata.ps1 \
-        #   -BaseUrl "http://localhost:7048/BC" \
-        #   -Tenant "default" \
-        #   -Username "admin" \
-        #   -Password "Admin123!" \
-        #   -CodeunitId 50001 \
-        #   -MaxWaitSeconds 300
-        # TEST_EXIT_CODE=$?
-        TEST_END=$(date +%s.%N)
-        TEST_DURATION=$(echo "$TEST_END - $TEST_START" | bc -l | sed 's/^\./0./')
-        echo "TEST_DURATION=$TEST_DURATION" >> $GITHUB_ENV
-        echo "Testing took: $TEST_DURATION seconds"
-        # exit $TEST_EXIT_CODE
+        exit $TEST_EXIT_CODE
 
     - name: Calculate comprehensive build metrics
       run: |
@@ -513,12 +520,3 @@ jobs:
         echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
         echo "Disk: $(df -h . | tail -1 | awk '{print $4}') available"
         echo "Docker: $(docker --version)"
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-full-test-artifacts
-        path: |
-          App/*.app
-          linux-full-test-metrics.json
-          linux-full-test-raw-measurements.json
-        retention-days: 30
