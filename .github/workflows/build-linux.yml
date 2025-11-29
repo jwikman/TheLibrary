@@ -92,21 +92,21 @@ jobs:
             "$BC_BASE_URL/microsoft.platform.symbols/$PLATFORM_VERSION/microsoft.platform.symbols.$PLATFORM_VERSION.nupkg" || echo "Failed to download Platform (System)"
 
         # Test Framework symbol packages (required by TestApp for compilation)
-        echo "Downloading Microsoft.Library Assert.US.symbols (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.library.assert.us.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.library.assert.us.symbols.dd0be2ea-f733-4d65-bb34-a28f4624fb14/$BC_VERSION/microsoft.library.assert.us.symbols.dd0be2ea-f733-4d65-bb34-a28f4624fb14.$BC_VERSION.nupkg" || echo "Failed to download Library Assert"
+        echo "Downloading Microsoft.LibraryAssert.symbols (Test Framework)..."
+        curl -L -s -o "temp_packages/microsoft.libraryassert.symbols.nupkg" \
+            "$BC_BASE_URL/microsoft.libraryassert.symbols.dd0be2ea-f733-4d65-bb34-a28f4624fb14/$BC_VERSION/microsoft.libraryassert.symbols.dd0be2ea-f733-4d65-bb34-a28f4624fb14.$BC_VERSION.nupkg" || echo "Failed to download LibraryAssert"
 
-        echo "Downloading Microsoft.Any.US.symbols (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.any.us.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.any.us.symbols.e7320ebb-08b3-4406-b1ec-b4927d3e280b/$BC_VERSION/microsoft.any.us.symbols.e7320ebb-08b3-4406-b1ec-b4927d3e280b.$BC_VERSION.nupkg" || echo "Failed to download Any"
+        echo "Downloading Microsoft.Any.symbols (Test Framework)..."
+        curl -L -s -o "temp_packages/microsoft.any.symbols.nupkg" \
+            "$BC_BASE_URL/microsoft.any.symbols.e7320ebb-08b3-4406-b1ec-b4927d3e280b/$BC_VERSION/microsoft.any.symbols.e7320ebb-08b3-4406-b1ec-b4927d3e280b.$BC_VERSION.nupkg" || echo "Failed to download Any"
 
-        echo "Downloading Microsoft.Test Runner.US.symbols (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.test.runner.us.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.test.runner.us.symbols.23de40a6-dfe8-4f80-80db-d70f83ce8caf/$BC_VERSION/microsoft.test.runner.us.symbols.23de40a6-dfe8-4f80-80db-d70f83ce8caf.$BC_VERSION.nupkg" || echo "Failed to download Test Runner"
+        echo "Downloading Microsoft.TestRunner.symbols (Test Framework)..."
+        curl -L -s -o "temp_packages/microsoft.testrunner.symbols.nupkg" \
+            "$BC_BASE_URL/microsoft.testrunner.symbols.23de40a6-dfe8-4f80-80db-d70f83ce8caf/$BC_VERSION/microsoft.testrunner.symbols.23de40a6-dfe8-4f80-80db-d70f83ce8caf.$BC_VERSION.nupkg" || echo "Failed to download TestRunner"
 
-        echo "Downloading Microsoft.Library Variable Storage.US.symbols (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.library.variable.storage.us.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.library.variable.storage.us.symbols.5095f467-0a01-4b99-99d1-9ff1237d286f/$BC_VERSION/microsoft.library.variable.storage.us.symbols.5095f467-0a01-4b99-99d1-9ff1237d286f.$BC_VERSION.nupkg" || echo "Failed to download Library Variable Storage"
+        echo "Downloading Microsoft.LibraryVariableStorage.symbols (Test Framework)..."
+        curl -L -s -o "temp_packages/microsoft.libraryvariablestorage.symbols.nupkg" \
+            "$BC_BASE_URL/microsoft.libraryvariablestorage.symbols.5095f467-0a01-4b99-99d1-9ff1237d286f/$BC_VERSION/microsoft.libraryvariablestorage.symbols.5095f467-0a01-4b99-99d1-9ff1237d286f.$BC_VERSION.nupkg" || echo "Failed to download LibraryVariableStorage"
 
         # Extract .nupkg files (which are zip files)
         mkdir -p temp_packages/extracted
