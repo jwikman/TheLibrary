@@ -67,88 +67,6 @@ jobs:
         echo "DIR_CREATION_DURATION=$DIR_DURATION" >> $GITHUB_ENV
         echo "Directory creation took: $DIR_DURATION seconds"
 
-    - name: Download BC Symbol Packages
-      run: |
-        echo "Downloading Business Central symbol packages from Microsoft feed..."
-        DOWNLOAD_START=$(date +%s.%N)
-        # Microsoft BC Symbols NuGet feed
-        BC_FEED="https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/MSSymbols/nuget/v3/index.json"
-        # Download packages directly using the discovered package base URL
-        BC_VERSION="26.3.36158.36341"
-        BC_BASE_URL="https://dynamicssmb2.pkgs.visualstudio.com/571e802d-b44b-45fc-bd41-4cfddec73b44/_packaging/b656b10c-3de0-440c-900c-bc2e4e86d84c/nuget/v3/flat2"
-        mkdir -p temp_packages
-        echo "Downloading Microsoft.SystemApplication.US.symbols..."
-        curl -L -s -o "temp_packages/microsoft.systemapplication.us.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.systemapplication.us.symbols.63ca2fa4-4f03-4f2b-a480-172fef340d3f/$BC_VERSION/microsoft.systemapplication.us.symbols.63ca2fa4-4f03-4f2b-a480-172fef340d3f.$BC_VERSION.nupkg" || echo "Failed to download System Application"
-        echo "Downloading Microsoft.BaseApplication.US.symbols..."
-        curl -L -s -o "temp_packages/microsoft.baseapplication.us.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.baseapplication.us.symbols.437dbf0e-84ff-417a-965d-ed2bb9650972/$BC_VERSION/microsoft.baseapplication.us.symbols.437dbf0e-84ff-417a-965d-ed2bb9650972.$BC_VERSION.nupkg" || echo "Failed to download Base Application"
-        echo "Downloading Microsoft.Application.US.symbols..."
-        curl -L -s -o "temp_packages/microsoft.application.us.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.application.us.symbols/$BC_VERSION/microsoft.application.us.symbols.$BC_VERSION.nupkg" || echo "Failed to download Application"
-        # Second-level dependencies
-        echo "Downloading Microsoft.BusinessFoundation.US.symbols (second-level dependency)..."
-        curl -L -s -o "temp_packages/microsoft.businessfoundation.us.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.businessfoundation.us.symbols.f3552374-a1f2-4356-848e-196002525837/$BC_VERSION/microsoft.businessfoundation.us.symbols.f3552374-a1f2-4356-848e-196002525837.$BC_VERSION.nupkg" || echo "Failed to download Business Foundation"
-        # The actual System package (not SystemApplication)
-        PLATFORM_VERSION="26.0.38176"
-        echo "Downloading Microsoft.Platform.symbols v$PLATFORM_VERSION (System dependency)..."
-        curl -L -s -o "temp_packages/microsoft.platform.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.platform.symbols/$PLATFORM_VERSION/microsoft.platform.symbols.$PLATFORM_VERSION.nupkg" || echo "Failed to download Platform (System)"
-
-        # Test Framework symbol packages (required by TestApp for compilation)
-        echo "Downloading Microsoft.LibraryAssert.symbols (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.libraryassert.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.libraryassert.symbols.dd0be2ea-f733-4d65-bb34-a28f4624fb14/$BC_VERSION/microsoft.libraryassert.symbols.dd0be2ea-f733-4d65-bb34-a28f4624fb14.$BC_VERSION.nupkg" || echo "Failed to download LibraryAssert"
-
-        echo "Downloading Microsoft.Any.symbols (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.any.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.any.symbols.e7320ebb-08b3-4406-b1ec-b4927d3e280b/$BC_VERSION/microsoft.any.symbols.e7320ebb-08b3-4406-b1ec-b4927d3e280b.$BC_VERSION.nupkg" || echo "Failed to download Any"
-
-        echo "Downloading Microsoft.TestRunner.symbols (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.testrunner.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.testrunner.symbols.23de40a6-dfe8-4f80-80db-d70f83ce8caf/$BC_VERSION/microsoft.testrunner.symbols.23de40a6-dfe8-4f80-80db-d70f83ce8caf.$BC_VERSION.nupkg" || echo "Failed to download TestRunner"
-
-        echo "Downloading Microsoft.LibraryVariableStorage.symbols (Test Framework)..."
-        curl -L -s -o "temp_packages/microsoft.libraryvariablestorage.symbols.nupkg" \
-            "$BC_BASE_URL/microsoft.libraryvariablestorage.symbols.5095f467-0a01-4b99-99d1-9ff1237d286f/$BC_VERSION/microsoft.libraryvariablestorage.symbols.5095f467-0a01-4b99-99d1-9ff1237d286f.$BC_VERSION.nupkg" || echo "Failed to download LibraryVariableStorage"
-
-        # Extract .nupkg files (which are zip files)
-        mkdir -p temp_packages/extracted
-        for nupkg in temp_packages/*.nupkg; do
-            if [ -f "$nupkg" ] && [ -s "$nupkg" ]; then
-                echo "Extracting $(basename "$nupkg")..."
-                mkdir -p "temp_packages/extracted/$(basename "$nupkg" .nupkg)"
-                unzip -q "$nupkg" -d "temp_packages/extracted/$(basename "$nupkg" .nupkg)" || echo "Failed to extract $nupkg"
-            else
-                echo "Skipping empty or missing file: $(basename "$nupkg")"
-            fi
-        done
-
-        # Extract .app files from downloaded packages
-        find temp_packages -name "*.app" -type f -exec cp {} App/.alpackages/ \;
-
-        # Clean up temporary files
-        rm -rf temp_packages
-        DOWNLOAD_END=$(date +%s.%N)
-        DOWNLOAD_DURATION=$(echo "$DOWNLOAD_END - $DOWNLOAD_START" | bc -l | sed 's/^\./0./')
-        echo "SYSTEM_DOWNLOAD_DURATION=$DOWNLOAD_DURATION" >> $GITHUB_ENV
-        echo "SYSTEM_EXTRACT_DURATION=0" >> $GITHUB_ENV
-        echo "BC symbols download took: $DOWNLOAD_DURATION seconds"
-
-        # List downloaded symbols
-        echo "Downloaded symbol packages:"
-        ls -lah App/.alpackages/
-
-    - name: Calculate total dependency time
-      run: |
-        # Calculate total time for BC symbol downloads
-        echo "BASE_DOWNLOAD_DURATION=0" >> $GITHUB_ENV
-        echo "BASE_EXTRACT_DURATION=0" >> $GITHUB_ENV
-        TOTAL_DEP_TIME=$(echo "$SYSTEM_DOWNLOAD_DURATION + $SYSTEM_EXTRACT_DURATION" | bc -l | sed 's/^\./0./')
-        echo "TOTAL_DEPENDENCY_DURATION=$TOTAL_DEP_TIME" >> $GITHUB_ENV
-        echo "Total dependency handling: $TOTAL_DEP_TIME seconds"
-
     - name: Pre-compilation setup
       run: |
         SETUP_START=$(date +%s.%N)
@@ -157,6 +75,15 @@ jobs:
         SETUP_DURATION=$(echo "$SETUP_END - $SETUP_START" | bc -l | sed 's/^\./0./')
         echo "PRECOMPILE_SETUP_DURATION=$SETUP_DURATION" >> $GITHUB_ENV
         echo "Pre-compilation setup: $SETUP_DURATION seconds"
+
+        # Set dependency duration variables for metrics
+        echo "SYSTEM_DOWNLOAD_DURATION=0" >> $GITHUB_ENV
+        echo "SYSTEM_EXTRACT_DURATION=$SYMBOL_EXTRACT_DURATION" >> $GITHUB_ENV
+        echo "BASE_DOWNLOAD_DURATION=0" >> $GITHUB_ENV
+        echo "BASE_EXTRACT_DURATION=0" >> $GITHUB_ENV
+        TOTAL_DEP_TIME=$(echo "$SYMBOL_EXTRACT_DURATION" | bc -l | sed 's/^\./0./')
+        echo "TOTAL_DEPENDENCY_DURATION=$TOTAL_DEP_TIME" >> $GITHUB_ENV
+        echo "Total dependency handling: $TOTAL_DEP_TIME seconds"
 
     - name: Compile AL Extension
       run: |
@@ -340,6 +267,85 @@ jobs:
         echo "CONTAINER_START_DURATION=$CONTAINER_START_DURATION" >> $GITHUB_ENV
         echo "Container start took: $CONTAINER_START_DURATION seconds"
         cd ..
+
+    - name: Extract BC Symbol Packages from Container
+      run: |
+        echo "Extracting Business Central symbol packages from container..."
+        EXTRACT_START=$(date +%s.%N)
+
+        cd bcdev-temp
+
+        # Get BC container name
+        CONTAINER_NAME=$(docker compose ps -q bc | head -n 1)
+        echo "Container name: $CONTAINER_NAME"
+
+        # Verify container is healthy
+        HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME 2>/dev/null || echo "unknown")
+        echo "Container health status: $HEALTH_STATUS"
+
+        # Create temporary directory for extraction
+        mkdir -p ../bc-symbols-temp
+
+        # Extract symbol files from container (BcContainerHelper approach)
+        # These are the paths where BC stores symbol .app files in BCDevOnLinux
+        echo ""
+        echo "Extracting symbols from container file system..."
+
+        # Try to find System.app
+        echo "Looking for System.app..."
+        docker exec $CONTAINER_NAME find /home -name "System.app" 2>/dev/null || echo "System.app search completed"
+
+        # Try common paths for symbols
+        echo "Copying from /home/alc/ ..."
+        docker cp "$CONTAINER_NAME:/home/alc/." ../bc-symbols-temp/ 2>/dev/null || echo "No files in /home/alc/"
+
+        echo "Copying from /Applications/ ..."
+        docker cp "$CONTAINER_NAME:/Applications/." ../bc-symbols-temp/ 2>/dev/null || echo "No files in /Applications/"
+
+        # BC Server Service folder
+        echo "Copying from BC Service folder..."
+        docker exec $CONTAINER_NAME bash -c "find /BC -name '*.app' -type f 2>/dev/null" | while read appPath; do
+            echo "  Found: $appPath"
+            docker cp "$CONTAINER_NAME:$appPath" ../bc-symbols-temp/ 2>/dev/null || true
+        done
+
+        # Count extracted apps
+        APP_COUNT=$(find ../bc-symbols-temp -name "*.app" -type f | wc -l)
+        echo ""
+        echo "Found $APP_COUNT .app files in container"
+
+        if [ "$APP_COUNT" -gt 0 ]; then
+            # List found apps
+            echo "Extracted symbol files:"
+            find ../bc-symbols-temp -name "*.app" -type f -exec basename {} \;
+
+            # Copy all extracted .app files to the App/.alpackages directory
+            echo ""
+            echo "Copying extracted .app files to App/.alpackages..."
+            find ../bc-symbols-temp -name "*.app" -type f -exec cp {} ../App/.alpackages/ \;
+
+            # Verify copy
+            COPIED_COUNT=$(find ../App/.alpackages -name "*.app" -type f | wc -l)
+            echo "Copied $COPIED_COUNT symbol files to App/.alpackages"
+        else
+            echo "WARNING: No symbol files found in container!"
+            echo "Container may need initialization or files are in different locations"
+        fi
+
+        # Clean up temporary directory
+        rm -rf ../bc-symbols-temp
+
+        cd ..
+
+        EXTRACT_END=$(date +%s.%N)
+        EXTRACT_DURATION=$(echo "$EXTRACT_END - $EXTRACT_START" | bc -l | sed 's/^\./0./')
+        echo "SYMBOL_EXTRACT_DURATION=$EXTRACT_DURATION" >> $GITHUB_ENV
+        echo "BC symbol extraction took: $EXTRACT_DURATION seconds"
+
+        # List all symbols in .alpackages
+        echo ""
+        echo "Final symbol packages in App/.alpackages:"
+        ls -lah App/.alpackages/
     - name: Publish AL Extension to Container
       run: |
         echo "Publishing AL extensions to BC container..."
