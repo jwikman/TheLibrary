@@ -67,94 +67,6 @@ jobs:
         echo "DIR_CREATION_DURATION=$DIR_DURATION" >> $GITHUB_ENV
         echo "Directory creation took: $DIR_DURATION seconds"
 
-    - name: Pre-compilation setup
-      run: |
-        SETUP_START=$(date +%s.%N)
-        # No bin directory needed - AL compiler outputs to project root by default
-        SETUP_END=$(date +%s.%N)
-        SETUP_DURATION=$(echo "$SETUP_END - $SETUP_START" | bc -l | sed 's/^\./0./')
-        echo "PRECOMPILE_SETUP_DURATION=$SETUP_DURATION" >> $GITHUB_ENV
-        echo "Pre-compilation setup: $SETUP_DURATION seconds"
-
-        # Set dependency duration variables for metrics
-        echo "SYSTEM_DOWNLOAD_DURATION=0" >> $GITHUB_ENV
-        echo "SYSTEM_EXTRACT_DURATION=$SYMBOL_EXTRACT_DURATION" >> $GITHUB_ENV
-        echo "BASE_DOWNLOAD_DURATION=0" >> $GITHUB_ENV
-        echo "BASE_EXTRACT_DURATION=0" >> $GITHUB_ENV
-        TOTAL_DEP_TIME=$(echo "$SYMBOL_EXTRACT_DURATION" | bc -l | sed 's/^\./0./')
-        echo "TOTAL_DEPENDENCY_DURATION=$TOTAL_DEP_TIME" >> $GITHUB_ENV
-        echo "Total dependency handling: $TOTAL_DEP_TIME seconds"
-
-    - name: Compile AL Extension
-      run: |
-        echo "Compiling AL extension..."
-        COMPILE_START=$(date +%s.%N)
-
-        # Compile the App folder
-        if al compile /project:"App" /packagecachepath:"App/.alpackages"; then
-            echo "App compilation successful"
-        else
-            echo "App compilation failed with exit code: $?"
-            exit 1
-        fi
-
-        # Prepare TestApp dependencies - copy all symbol packages from App
-        mkdir -p TestApp/.alpackages
-        echo "Copying all symbol packages to TestApp/.alpackages..."
-        cp App/.alpackages/*.app TestApp/.alpackages/
-
-        # Copy the compiled main app to TestApp dependencies
-        echo "Copying compiled main app to TestApp/.alpackages..."
-        cp App/*.app TestApp/.alpackages/
-
-        # List what's available for TestApp compilation
-        echo "TestApp dependencies:"
-        ls -la TestApp/.alpackages/
-
-        # Compile the TestApp folder
-        if al compile /project:"TestApp" /packagecachepath:"TestApp/.alpackages"; then
-            echo "TestApp compilation successful"
-        else
-            echo "TestApp compilation failed with exit code: $?"
-            exit 1
-        fi
-
-        COMPILE_END=$(date +%s.%N)
-        COMPILE_DURATION=$(echo "$COMPILE_END - $COMPILE_START" | bc -l | sed 's/^\./0./')
-        echo "COMPILE_DURATION=$COMPILE_DURATION" >> $GITHUB_ENV
-        echo "Compilation took: $COMPILE_DURATION seconds"
-
-    - name: Post-compilation analysis
-      run: |
-        ANALYSIS_START=$(date +%s.%N)
-        # List and analyze compiled files
-        echo "Compiled files:"
-        echo "App folder:"
-        find App -maxdepth 1 -type f -name "*.app" | while read file; do
-            SIZE_BYTES=$(stat -c%s "$file" 2>/dev/null || echo "0")
-            SIZE_KB=$(echo "scale=2; $SIZE_BYTES / 1024" | bc -l | sed 's/^\./0./')
-            echo "  $(basename "$file") - ${SIZE_KB} KB"
-        done
-        echo "TestApp folder:"
-        find TestApp -maxdepth 1 -type f -name "*.app" | while read file; do
-            SIZE_BYTES=$(stat -c%s "$file" 2>/dev/null || echo "0")
-            SIZE_KB=$(echo "scale=2; $SIZE_BYTES / 1024" | bc -l | sed 's/^\./0./')
-            echo "  $(basename "$file") - ${SIZE_KB} KB"
-        done
-        # Count apps and calculate total size
-        APP_COUNT=$(find App TestApp -maxdepth 1 -type f -name "*.app" | wc -l)
-        if [ "$APP_COUNT" -gt 0 ]; then
-            TOTAL_SIZE_BYTES=$(find App TestApp -maxdepth 1 -type f -name "*.app" -exec stat -c%s {} + 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
-            TOTAL_SIZE_KB=$(echo "scale=2; $TOTAL_SIZE_BYTES / 1024" | bc -l | sed 's/^\./0./')
-            echo "APP_COUNT=$APP_COUNT" >> $GITHUB_ENV
-            echo "TOTAL_APP_SIZE_KB=$TOTAL_SIZE_KB" >> $GITHUB_ENV
-            echo "Total app size: ${TOTAL_SIZE_KB} KB"
-        fi
-        ANALYSIS_END=$(date +%s.%N)
-        ANALYSIS_DURATION=$(echo "$ANALYSIS_END - $ANALYSIS_START" | bc -l | sed 's/^\./0./')
-        echo "POST_COMPILE_ANALYSIS_DURATION=$ANALYSIS_DURATION" >> $GITHUB_ENV
-        echo "Post-compilation analysis: $ANALYSIS_DURATION seconds"
-
     - name: Setup Docker for BC Container
       run: |
         echo "Setting up Docker environment..."
@@ -346,6 +258,95 @@ jobs:
         echo ""
         echo "Final symbol packages in App/.alpackages:"
         ls -lah App/.alpackages/
+
+    - name: Pre-compilation setup
+      run: |
+        SETUP_START=$(date +%s.%N)
+        # No bin directory needed - AL compiler outputs to project root by default
+        SETUP_END=$(date +%s.%N)
+        SETUP_DURATION=$(echo "$SETUP_END - $SETUP_START" | bc -l | sed 's/^\./0./')
+        echo "PRECOMPILE_SETUP_DURATION=$SETUP_DURATION" >> $GITHUB_ENV
+        echo "Pre-compilation setup: $SETUP_DURATION seconds"
+
+        # Set dependency duration variables for metrics
+        echo "SYSTEM_DOWNLOAD_DURATION=0" >> $GITHUB_ENV
+        echo "SYSTEM_EXTRACT_DURATION=$SYMBOL_EXTRACT_DURATION" >> $GITHUB_ENV
+        echo "BASE_DOWNLOAD_DURATION=0" >> $GITHUB_ENV
+        echo "BASE_EXTRACT_DURATION=0" >> $GITHUB_ENV
+        TOTAL_DEP_TIME=$(echo "$SYMBOL_EXTRACT_DURATION" | bc -l | sed 's/^\./0./')
+        echo "TOTAL_DEPENDENCY_DURATION=$TOTAL_DEP_TIME" >> $GITHUB_ENV
+        echo "Total dependency handling: $TOTAL_DEP_TIME seconds"
+
+    - name: Compile AL Extension
+      run: |
+        echo "Compiling AL extension..."
+        COMPILE_START=$(date +%s.%N)
+
+        # Compile the App folder
+        if al compile /project:"App" /packagecachepath:"App/.alpackages"; then
+            echo "App compilation successful"
+        else
+            echo "App compilation failed with exit code: $?"
+            exit 1
+        fi
+
+        # Prepare TestApp dependencies - copy all symbol packages from App
+        mkdir -p TestApp/.alpackages
+        echo "Copying all symbol packages to TestApp/.alpackages..."
+        cp App/.alpackages/*.app TestApp/.alpackages/
+
+        # Copy the compiled main app to TestApp dependencies
+        echo "Copying compiled main app to TestApp/.alpackages..."
+        cp App/*.app TestApp/.alpackages/
+
+        # List what's available for TestApp compilation
+        echo "TestApp dependencies:"
+        ls -la TestApp/.alpackages/
+
+        # Compile the TestApp folder
+        if al compile /project:"TestApp" /packagecachepath:"TestApp/.alpackages"; then
+            echo "TestApp compilation successful"
+        else
+            echo "TestApp compilation failed with exit code: $?"
+            exit 1
+        fi
+
+        COMPILE_END=$(date +%s.%N)
+        COMPILE_DURATION=$(echo "$COMPILE_END - $COMPILE_START" | bc -l | sed 's/^\./0./')
+        echo "COMPILE_DURATION=$COMPILE_DURATION" >> $GITHUB_ENV
+        echo "Compilation took: $COMPILE_DURATION seconds"
+
+    - name: Post-compilation analysis
+      run: |
+        ANALYSIS_START=$(date +%s.%N)
+        # List and analyze compiled files
+        echo "Compiled files:"
+        echo "App folder:"
+        find App -maxdepth 1 -type f -name "*.app" | while read file; do
+            SIZE_BYTES=$(stat -c%s "$file" 2>/dev/null || echo "0")
+            SIZE_KB=$(echo "scale=2; $SIZE_BYTES / 1024" | bc -l | sed 's/^\./0./')
+            echo "  $(basename "$file") - ${SIZE_KB} KB"
+        done
+        echo "TestApp folder:"
+        find TestApp -maxdepth 1 -type f -name "*.app" | while read file; do
+            SIZE_BYTES=$(stat -c%s "$file" 2>/dev/null || echo "0")
+            SIZE_KB=$(echo "scale=2; $SIZE_BYTES / 1024" | bc -l | sed 's/^\./0./')
+            echo "  $(basename "$file") - ${SIZE_KB} KB"
+        done
+        # Count apps and calculate total size
+        APP_COUNT=$(find App TestApp -maxdepth 1 -type f -name "*.app" | wc -l)
+        if [ "$APP_COUNT" -gt 0 ]; then
+            TOTAL_SIZE_BYTES=$(find App TestApp -maxdepth 1 -type f -name "*.app" -exec stat -c%s {} + 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
+            TOTAL_SIZE_KB=$(echo "scale=2; $TOTAL_SIZE_BYTES / 1024" | bc -l | sed 's/^\./0./')
+            echo "APP_COUNT=$APP_COUNT" >> $GITHUB_ENV
+            echo "TOTAL_APP_SIZE_KB=$TOTAL_SIZE_KB" >> $GITHUB_ENV
+            echo "Total app size: ${TOTAL_SIZE_KB} KB"
+        fi
+        ANALYSIS_END=$(date +%s.%N)
+        ANALYSIS_DURATION=$(echo "$ANALYSIS_END - $ANALYSIS_START" | bc -l | sed 's/^\./0./')
+        echo "POST_COMPILE_ANALYSIS_DURATION=$ANALYSIS_DURATION" >> $GITHUB_ENV
+        echo "Post-compilation analysis: $ANALYSIS_DURATION seconds"
+
     - name: Publish AL Extension to Container
       run: |
         echo "Publishing AL extensions to BC container..."
@@ -394,20 +395,27 @@ jobs:
         docker compose exec -T bc printenv | grep -i password || echo "No password environment variables found"
         docker compose exec -T bc printenv | grep -i admin || echo "No admin environment variables found"
 
-        # 2. Check BC Server version and configuration
+        # 2. Check BC Server version and configuration (COMPLETE DUMP)
         echo ""
         echo "2. Checking BC Server configuration..."
-        docker compose exec -T bc cat /BC/Service/CustomSettings.config 2>/dev/null | grep -E "ServerInstance|DatabaseServer|DatabaseName|ClientServicesCredentialType" || echo "Could not read CustomSettings.config"
+        echo "=========================================="
+        echo "COMPLETE CustomSettings.config:"
+        echo "=========================================="
+        docker compose exec -T bc cat /BC/Service/CustomSettings.config 2>/dev/null || echo "Could not read CustomSettings.config"
+        echo "=========================================="
+        echo ""
+        echo "IMPORTANT: ClientServicesCredentialType should be 'NavUserPassword' for username/password auth on OData"
+        echo "IMPORTANT: ODataServicesEnabled should be 'true' for OData to work"
 
         # 3. Verify admin user exists and check authentication mode
         echo ""
         echo "3. Checking BC users in database..."
-        docker compose exec -T sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -d BC -Q "SELECT [User Name], [User Security ID], State, [License Type], [Authentication Email] FROM [dbo].[User]" -C -N || echo "Failed to query users"
+        docker compose exec -T sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "P@ssw0rd123!" -d BC -Q "SELECT [User Name], [User Security ID], State, [License Type], [Authentication Email] FROM [dbo].[User]" -C -N || echo "Failed to query users"
 
         # 4. Check User Property for admin user (including password hash)
         echo ""
         echo "4. Checking admin user properties..."
-        docker compose exec -T sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -d BC -Q "SELECT [User Security ID], [User Name], [Password] FROM [dbo].[User] WHERE [User Name] = 'admin'" -C -N || echo "Failed to query admin user properties"
+        docker compose exec -T sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "P@ssw0rd123!" -d BC -Q "SELECT [User Security ID], [User Name], [Password] FROM [dbo].[User] WHERE [User Name] = 'admin'" -C -N || echo "Failed to query admin user properties"
 
         # 5. Test API endpoints accessibility
         echo ""
