@@ -36,7 +36,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$BaseUrl = "http://localhost:7046/BC",
+    [string]$BaseUrl = "http://localhost:7048/BC",
 
     [Parameter(Mandatory=$false)]
     [string]$Tenant = "default",

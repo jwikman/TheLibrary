@@ -3,6 +3,11 @@ name: Build Linux (Full Test)
 on:
   workflow_dispatch:
   workflow_call:
+  push:
+    paths:
+      - '.github/workflows/build-linux.yml'
+      - 'scripts/deploy-bc-container-local.ps1'
+      - 'scripts/run-tests-odata.ps1'
 
 env:
   AL_VERSION: 'latest'
@@ -377,9 +382,9 @@ jobs:
 
         # Execute test codeunit via OData API using PowerShell script
         # Running Library Author Tests (codeunit 70451)
-        # Note: OData port is 7046, SOAP/web services port is 7047, Development port is 7049
+        # Port mappings: 7046=WebClient, 7047=SOAP, 7048=OData/API, 7049=Development
         pwsh ./scripts/run-tests-odata.ps1 \
-          -BaseUrl "http://localhost:7046/BC" \
+          -BaseUrl "http://localhost:7048/BC" \
           -Tenant "default" \
           -Username "admin" \
           -Password "Admin123!" \
