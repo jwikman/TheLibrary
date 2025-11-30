@@ -375,6 +375,23 @@ jobs:
         PUBLISH_DURATION=$(echo "$PUBLISH_END - $PUBLISH_START" | bc -l | sed 's/^\./0./')
         echo "PUBLISH_DURATION=$PUBLISH_DURATION" >> $GITHUB_ENV
         echo "Publishing took: $PUBLISH_DURATION seconds"
+
+    - name: Create BC User for API Testing
+      run: |
+        echo "Creating BC user for API testing..."
+        cd bcdev-temp
+
+        # Create admin user using BCDevOnLinux script
+        docker compose exec -T bc bash /home/scripts/bc/create-bc-user-sql.sh admin "Admin123!" SUPER
+
+        # Wait a moment for user to be created
+        sleep 5
+
+        # Verify user was created by checking SQL
+        docker compose exec -T sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -d BC -Q "SELECT [User Name], State FROM [dbo].[User] WHERE [User Name] = 'admin'" -C -N
+
+        cd ..
+
     - name: Run AL Tests in Container via OData
       run: |
         echo "Running AL tests in BC container via OData API..."
