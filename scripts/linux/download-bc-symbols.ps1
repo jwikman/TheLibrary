@@ -70,8 +70,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$StartTime = Get-Date
-
 # Verify app.json exists
 if (!(Test-Path $AppJsonPath)) {
     Write-Host "ERROR: app.json not found at: $AppJsonPath" -ForegroundColor Red
@@ -327,15 +325,11 @@ while ($dependenciesToDownload.Count -gt 0) {
     }
 }
 
-$EndTime = Get-Date
-$Duration = ($EndTime - $StartTime).TotalSeconds
-
 Write-Host ""
 Write-Host "=== Download Summary ===" -ForegroundColor Cyan
 Write-Host "Downloaded: $downloadedCount" -ForegroundColor Green
 Write-Host "Skipped: $skippedCount" -ForegroundColor DarkGray
 Write-Host "Failed: $failedCount" -ForegroundColor $(if ($failedCount -gt 0) { "Red" } else { "Green" })
-Write-Host "Duration: $([Math]::Round($Duration, 2)) seconds" -ForegroundColor Gray
 Write-Host ""
 
 # List downloaded symbols

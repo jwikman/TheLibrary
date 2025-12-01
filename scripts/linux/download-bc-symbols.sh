@@ -8,7 +8,6 @@ BC_VERSION="${1:-27.1.41698.41776}"
 PLATFORM_VERSION="${2:-27.0.41766}"
 
 echo "Downloading Business Central symbol packages from Microsoft feed..."
-DOWNLOAD_START=$(date +%s.%N)
 
 # Microsoft BC Symbols NuGet feeds (two different feeds for different package types)
 BC_FEED_SYMBOLS="https://dynamicssmb2.pkgs.visualstudio.com/571e802d-b44b-45fc-bd41-4cfddec73b44/_packaging/b656b10c-3de0-440c-900c-bc2e4e86d84c/nuget/v3/flat2"
@@ -74,12 +73,6 @@ find temp_packages -name "*.app" -type f -exec cp {} .alpackages/ \;
 
 # Clean up temporary files
 rm -rf temp_packages
-
-DOWNLOAD_END=$(date +%s.%N)
-DOWNLOAD_DURATION=$(echo "$DOWNLOAD_END - $DOWNLOAD_START" | bc -l | sed 's/^\./0./')
-echo "SYSTEM_DOWNLOAD_DURATION=$DOWNLOAD_DURATION" >> "$GITHUB_ENV"
-echo "SYSTEM_EXTRACT_DURATION=0" >> "$GITHUB_ENV"
-echo "BC symbols download took: $DOWNLOAD_DURATION seconds"
 
 # List downloaded symbols
 echo "Downloaded symbol packages:"

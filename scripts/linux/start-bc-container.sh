@@ -7,7 +7,6 @@ set -e
 MAX_WAIT="${1:-1200}"  # Default: 20 minutes
 
 echo "Starting Business Central container..."
-CONTAINER_START_TIME=$(date +%s.%N)
 cd bcdev-temp
 
 # Start the container
@@ -56,8 +55,4 @@ fi
 docker compose ps
 docker compose logs
 
-CONTAINER_START_END=$(date +%s.%N)
-CONTAINER_START_DURATION=$(echo "$CONTAINER_START_END - $CONTAINER_START_TIME" | bc -l | sed 's/^\./0./')
-echo "CONTAINER_START_DURATION=$CONTAINER_START_DURATION" >> "$GITHUB_ENV"
-echo "Container startup took: $CONTAINER_START_DURATION seconds"
 cd ..

@@ -129,13 +129,10 @@ try {
     # we'll wait a bit and then check for results
     # In a real scenario, you'd query the AL Test Suite table
 
-    $StartTime = Get-Date
     $WaitSeconds = 10  # Give tests time to run
 
     Write-Host "  Waiting $WaitSeconds seconds for tests to complete..." -ForegroundColor Gray
     Start-Sleep -Seconds $WaitSeconds
-
-    $ElapsedSeconds = ((Get-Date) - $StartTime).TotalSeconds
 
     Write-Host ""
     Write-Host "[4/4] Test Execution Results:" -ForegroundColor Yellow
@@ -148,7 +145,6 @@ try {
 
     Write-Host "  Status: Completed" -ForegroundColor Green
     Write-Host "  Test Suite: LIB Test Suite (Codeunit $CodeunitId)" -ForegroundColor Gray
-    Write-Host "  Execution Time: $([Math]::Round($ElapsedSeconds, 2)) seconds" -ForegroundColor Gray
     Write-Host ""
 
     Write-Host "Note: Test results should be verified through the AL Test Tool UI or by querying the AL Test Suite table" -ForegroundColor Yellow

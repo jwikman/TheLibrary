@@ -25,11 +25,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Record start time
-        run: |
-          echo "BUILD_START_TIME=$(date -Iseconds)" >> $GITHUB_ENV
-          echo "Build started at: $(date -Iseconds)"
-
       - name: Setup .NET 8.0 and AL Tools
         run: |
           chmod +x ./scripts/linux/setup-dotnet-and-al.sh
@@ -98,8 +93,7 @@ jobs:
       - name: Build Summary
         run: |
           echo "=== BUILD SUMMARY ==="
-          echo "Build Start Time: $BUILD_START_TIME"
-          echo "Build End Time: $(date -Iseconds)"
+          echo "Build completed at: $(date -Iseconds)"
           echo ""
           echo "=== BUILD ARTIFACTS ==="
           ls -lh App/*.app TestApp/*.app 2>/dev/null || echo "No .app files found"
