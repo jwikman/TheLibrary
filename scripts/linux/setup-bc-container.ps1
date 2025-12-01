@@ -110,6 +110,36 @@ try {
         [Environment]::SetEnvironmentVariable($key, $buildEnv[$key], [EnvironmentVariableTarget]::Process)
     }
 
+    # CRITICAL FIX: BCDevOnLinux's compose.yml doesn't include BC_ARTIFACT_URL in the bc service environment
+    # We need to add it so cache-artifacts.ps1 can read it at runtime
+    if ($BCArtifactUrl -and (Test-Path "compose.yml")) {
+        Write-Host "Modifying compose.yml to add BC_ARTIFACT_URL to bc service environment..." -ForegroundColor Yellow
+
+        $composeContent = Get-Content "compose.yml" -Raw
+
+        # Find the bc service environment section and add BC_ARTIFACT_URL
+        # The environment section for bc service currently has:
+        #   environment:
+        #     - SA_PASSWORD=${SA_PASSWORD:-P@ssw0rd123!}
+        #     - SQL_SERVER=sql
+        #     ...
+
+        # We'll add BC_ARTIFACT_URL after SA_PASSWORD
+        $pattern = '(environment:\s+- SA_PASSWORD=\$\{SA_PASSWORD:-P@ssw0rd123!\})'
+        $replacement = "`$1`n      - BC_ARTIFACT_URL=`${BC_ARTIFACT_URL}"
+
+        $modifiedContent = $composeContent -replace $pattern, $replacement
+
+        if ($modifiedContent -ne $composeContent) {
+            Set-Content -Path "compose.yml" -Value $modifiedContent -Encoding utf8NoBOM -Force
+            Write-Host "✓ Added BC_ARTIFACT_URL to compose.yml bc service environment" -ForegroundColor Green
+        }
+        else {
+            Write-Host "⚠ Could not modify compose.yml - pattern not found" -ForegroundColor Yellow
+            Write-Host "BC_ARTIFACT_URL may not be passed to container" -ForegroundColor Yellow
+        }
+    }
+
     docker compose build
 }
 finally {

@@ -38,9 +38,17 @@ try {
             }
         }
 
-        # Also verify the file will be read by docker compose
-        Write-Host "`nVerifying docker compose can read .env file:" -ForegroundColor Gray
-        docker compose config | Select-String -Pattern "BC_ARTIFACT_URL|SA_PASSWORD" | ForEach-Object {
+        # Dump full docker compose config for troubleshooting
+        Write-Host "`nDumping full docker compose config for troubleshooting:" -ForegroundColor Gray
+        $composeConfig = docker compose config 2>&1
+
+        # Save to file for later reference
+        $composeConfig | Out-File "docker-c.yml" -Encoding utf8
+        Write-Host "✓ Full config saved to docker-compose-resolved.yml" -ForegroundColor Green
+
+        # Show key environment variables
+        Write-Host "`nKey environment variables in resolved config:" -ForegroundColor Gray
+        $composeConfig | Select-String -Pattern "BC_ARTIFACT_URL|SA_PASSWORD" | ForEach-Object {
             $line = $_.Line
             if ($line -match "SA_PASSWORD") {
                 Write-Host "  (SA_PASSWORD found in config)" -ForegroundColor Gray
@@ -49,6 +57,13 @@ try {
                 Write-Host "  $line" -ForegroundColor Gray
             }
         }
+
+        # Count occurrences
+        $bcArtifactCount = ($composeConfig | Select-String -Pattern "BC_ARTIFACT_URL" -AllMatches).Matches.Count
+        $saPasswordCount = ($composeConfig | Select-String -Pattern "SA_PASSWORD" -AllMatches).Matches.Count
+        Write-Host "`nEnvironment variable occurrence count:" -ForegroundColor Cyan
+        Write-Host "  BC_ARTIFACT_URL: $bcArtifactCount" -ForegroundColor $(if ($bcArtifactCount -gt 0) { "Green" } else { "Red" })
+        Write-Host "  SA_PASSWORD: $saPasswordCount" -ForegroundColor $(if ($saPasswordCount -gt 0) { "Green" } else { "Red" })
     }
     else {
         Write-Host "⚠ Warning: .env file not found in bcdev-temp directory!" -ForegroundColor Yellow
