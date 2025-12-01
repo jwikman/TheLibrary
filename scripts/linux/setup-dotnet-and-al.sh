@@ -2,10 +2,9 @@
 set -e
 
 # Setup .NET 8.0 and AL Language development tools
-# Usage: ./setup-dotnet-and-al.sh <AL_VERSION> <BUILD_START_EPOCH>
+# Usage: ./setup-dotnet-and-al.sh <AL_VERSION>
 
 AL_VERSION="${1:-17.0.28.6483-beta}"
-BUILD_START_EPOCH="${2}"
 
 echo "Installing .NET 8.0 SDK..."
 SETUP_START=$(date +%s.%N)
@@ -28,10 +27,5 @@ echo "Verifying BC Development Tools installation..."
 al --version || true
 
 SETUP_END=$(date +%s.%N)
-if [ -n "$BUILD_START_EPOCH" ]; then
-    SETUP_DURATION=$(echo "$SETUP_END - $BUILD_START_EPOCH" | bc -l | sed 's/^\./0./')
-else
-    SETUP_DURATION=$(echo "$SETUP_END - $SETUP_START" | bc -l | sed 's/^\./0./')
-fi
-echo "SETUP_DURATION=$SETUP_DURATION" >> "$GITHUB_ENV"
+SETUP_DURATION=$(echo "$SETUP_END - $SETUP_START" | bc -l | sed 's/^\./0./')
 echo "Setup (.NET + AL tools + verification) took: $SETUP_DURATION seconds"

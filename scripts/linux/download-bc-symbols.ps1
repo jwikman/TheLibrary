@@ -321,9 +321,9 @@ while ($dependenciesToDownload.Count -gt 0) {
         }
     } else {
         $failedCount++
-        Write-Host "ERROR: Failed to download $($dep.Name) v$($dep.Version)" -ForegroundColor Red
-        Write-Host "This is required - aborting download process" -ForegroundColor Red
-        exit 1
+        Write-Host "  ⚠ WARNING: Failed to download $($dep.Name) v$($dep.Version)" -ForegroundColor Yellow
+        Write-Host "    Error: $($result.Error)" -ForegroundColor Yellow
+        Write-Host "    Continuing with remaining dependencies..." -ForegroundColor DarkGray
     }
 }
 
@@ -349,16 +349,9 @@ if (Test-Path $SymbolsFolder) {
     Write-Host ""
 }
 
-# Set GitHub Actions environment variables if running in GitHub Actions
-if ($env:GITHUB_ENV) {
-    $formattedDuration = "{0:F6}" -f $Duration
-    Add-Content -Path $env:GITHUB_ENV -Value "SYSTEM_DOWNLOAD_DURATION=$formattedDuration"
-    Add-Content -Path $env:GITHUB_ENV -Value "SYSTEM_EXTRACT_DURATION=0"
-    Write-Host "GitHub Actions environment variables set" -ForegroundColor Green
-}
-
 if ($failedCount -gt 0) {
     Write-Host "=== WARNING: Some symbol downloads failed ===" -ForegroundColor Yellow
+    Write-Host "Downloaded: $downloadedCount | Skipped: $skippedCount | Failed: $failedCount" -ForegroundColor Yellow
     Write-Host "Compilation may fail if required dependencies are missing" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Troubleshooting:" -ForegroundColor Yellow
@@ -367,8 +360,8 @@ if ($failedCount -gt 0) {
     Write-Host "  3. Verify credentials are correct" -ForegroundColor Gray
     Write-Host "  4. Check BC container logs: docker logs bcserver" -ForegroundColor Gray
     Write-Host ""
-    exit 1
+} else {
+    Write-Host "=== Symbol Download Successful ===" -ForegroundColor Green
 }
 
-Write-Host "=== Symbol Download Successful ===" -ForegroundColor Green
 exit 0
