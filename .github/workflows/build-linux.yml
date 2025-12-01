@@ -180,101 +180,106 @@ jobs:
         echo "Container start took: $CONTAINER_START_DURATION seconds"
         cd ..
 
-    - name: Download BC Symbol Packages via Development Endpoint
+    - name: Extract BC Symbol Packages from Container
       run: |
-        echo "Downloading Business Central symbol packages via Development endpoint..."
+        echo "Extracting Business Central symbol packages from container filesystem..."
         EXTRACT_START=$(date +%s.%N)
-
-        # Function to download a symbol package with retries and verification
-        # Uses URL encoding for app names and verifies downloaded files are not empty
-        download_symbol() {
+        
+        cd bcdev-temp
+        
+        # The BC artifacts are stored in /home/bcartifacts inside the container
+        # Symbol files are located in the ModernDev/program files path
+        echo "Locating symbol files in container..."
+        
+        # Find the exact path to symbol files in the container
+        # They should be in /home/bcartifacts/ModernDev/program files/Microsoft Dynamics NAV/260/AL Development Environment/
+        SYMBOL_PATH="/home/bcartifacts/ModernDev/program files/Microsoft Dynamics NAV/260/AL Development Environment"
+        
+        echo "Checking symbol path in container..."
+        docker compose exec -T bc ls -la "$SYMBOL_PATH/" 2>/dev/null || {
+            echo "Primary symbol path not found, searching for alternatives..."
+            # Try to find symbol files anywhere in the container
+            docker compose exec -T bc find /home/bcartifacts -name "*.app" -type f 2>/dev/null | head -20
+            # Also check for ALLanguage location
+            docker compose exec -T bc find /home/bcartifacts -type d -name "AL Development Environment" 2>/dev/null | head -5
+        }
+        
+        # Create a helper function to copy symbol files
+        copy_symbol() {
             local app_name="$1"
             local output_file="$2"
-            local retries=5
-            local delay=10
             
-            # URL-encode the app name properly for use in URLs
-            # Handles spaces and other common URL-unsafe characters
-            local encoded_name
-            encoded_name=$(echo "$app_name" | sed 's/ /%20/g; s/&/%26/g; s/?/%3F/g; s/#/%23/g; s/+/%2B/g')
+            echo "  → Copying $app_name symbol..."
             
-            for attempt in $(seq 1 $retries); do
-                echo "  → Downloading $app_name (attempt $attempt/$retries)..."
-                
-                # Use --fail to make curl return error on HTTP errors
-                # Use --silent with --show-error for cleaner output
-                if curl --fail --silent --show-error \
-                        -u "admin:Admin123!" \
-                        -o "$output_file" \
-                        "http://localhost:7049/BC/dev/packages?publisher=Microsoft&appName=${encoded_name}&versionText=26.0" 2>&1; then
-                    
-                    # Verify file is not empty (at least 1KB for a valid .app file)
-                    if [ -f "$output_file" ]; then
-                        local size
-                        size=$(stat -c%s "$output_file" 2>/dev/null || echo "0")
-                        if [ "$size" -gt 1024 ]; then
-                            echo "  ✓ $app_name downloaded successfully ($(numfmt --to=iec-i --suffix=B $size))"
-                            return 0
-                        else
-                            echo "  ⚠ Downloaded file is too small ($size bytes), retrying..."
-                            rm -f "$output_file"
-                        fi
+            # The symbol files in BC artifacts use the format: Microsoft_<AppName>_<version>.app
+            # First try to find the exact file
+            local found_file
+            found_file=$(docker compose exec -T bc find "$SYMBOL_PATH" -maxdepth 1 -name "Microsoft_${app_name}_*.app" -type f 2>/dev/null | head -1)
+            
+            if [ -n "$found_file" ]; then
+                docker compose cp "bc:$found_file" "../$output_file"
+                if [ -f "../$output_file" ]; then
+                    local size
+                    size=$(stat -c%s "../$output_file" 2>/dev/null || echo "0")
+                    if [ "$size" -gt 1024 ]; then
+                        echo "  ✓ $app_name copied successfully ($(numfmt --to=iec-i --suffix=B $size))"
+                        return 0
                     fi
-                else
-                    echo "  ⚠ Download failed, retrying..."
                 fi
-                
-                [ $attempt -lt $retries ] && sleep $delay
-            done
+            fi
             
-            echo "  ✗ Failed to download $app_name after $retries attempts"
+            echo "  ⚠ Could not find $app_name symbol file"
             return 1
         }
-
-        # Wait a moment for the development endpoint to fully initialize
-        echo "Waiting 30 seconds for BC development endpoint to fully initialize..."
-        sleep 30
-
-        # Download symbols using BC Server's Development endpoint (port 7049)
-        # This is the same approach BcContainerHelper uses
         
-        # Required symbols for App (platform + application)
+        # List available symbol files in the container for debugging
         echo ""
-        echo "Downloading System symbols..."
-        download_symbol "System" "App/.alpackages/System.app"
+        echo "Available symbol files in container:"
+        docker compose exec -T bc ls -la "$SYMBOL_PATH/" 2>/dev/null | grep "Microsoft_" | head -20 || echo "Could not list symbol files"
+        
+        # Copy required symbols for App (platform + application)
+        echo ""
+        echo "Copying System symbols..."
+        copy_symbol "System" "App/.alpackages/System.app"
         SYSTEM_RESULT=$?
 
         echo ""
-        echo "Downloading Application symbols..."
-        download_symbol "Application" "App/.alpackages/Application.app"
+        echo "Copying Application symbols..."
+        copy_symbol "Application" "App/.alpackages/Application.app"
         APPLICATION_RESULT=$?
 
-        # Check if required symbols were downloaded
+        # Check if required symbols were copied
         if [ $SYSTEM_RESULT -ne 0 ] || [ $APPLICATION_RESULT -ne 0 ]; then
             echo ""
-            echo "ERROR: Failed to download required symbols (System and/or Application)"
-            echo "Checking if development endpoint is accessible..."
-            curl -v -u "admin:Admin123!" "http://localhost:7049/BC/dev/packages?publisher=Microsoft&appName=System&versionText=26.0" 2>&1 | head -50
+            echo "ERROR: Failed to extract required symbols (System and/or Application)"
+            echo ""
+            echo "Debugging: Listing all .app files in container's bcartifacts..."
+            docker compose exec -T bc find /home/bcartifacts -name "*.app" -type f 2>/dev/null | head -50
+            echo ""
+            echo "Debugging: Container artifact structure..."
+            docker compose exec -T bc ls -laR /home/bcartifacts/ModernDev/ 2>/dev/null | head -100 || echo "ModernDev path not found"
             exit 1
         fi
 
         # Additional symbols needed for TestApp
         echo ""
-        echo "Downloading test framework symbols..."
+        echo "Copying test framework symbols..."
         
-        download_symbol "Library Assert" "App/.alpackages/Library Assert.app"
-        download_symbol "Any" "App/.alpackages/Any.app"
-        download_symbol "Test Runner" "App/.alpackages/Test Runner.app"
-        download_symbol "Library Variable Storage" "App/.alpackages/Library Variable Storage.app"
+        copy_symbol "Library Assert" "App/.alpackages/Library Assert.app"
+        copy_symbol "Any" "App/.alpackages/Any.app"
+        copy_symbol "Test Runner" "App/.alpackages/Test Runner.app"
+        copy_symbol "Library Variable Storage" "App/.alpackages/Library Variable Storage.app"
+
+        cd ..
 
         EXTRACT_END=$(date +%s.%N)
         EXTRACT_DURATION=$(echo "$EXTRACT_END - $EXTRACT_START" | bc -l | sed 's/^\./0./')
         echo "SYMBOL_EXTRACT_DURATION=$EXTRACT_DURATION" >> $GITHUB_ENV
-        echo "BC symbol download took: $EXTRACT_DURATION seconds"
+        echo "BC symbol extraction took: $EXTRACT_DURATION seconds"
 
         # List all symbols in .alpackages
         echo ""
-        echo "Downloaded symbol packages in App/.alpackages:"
+        echo "Extracted symbol packages in App/.alpackages:"
         ls -lah App/.alpackages/
         
         # Count and verify required symbols (System and Application are mandatory)
@@ -283,7 +288,7 @@ jobs:
             SYSTEM_SIZE=$(stat -c%s "App/.alpackages/System.app" 2>/dev/null || echo "0")
             APP_SIZE=$(stat -c%s "App/.alpackages/Application.app" 2>/dev/null || echo "0")
             if [ "$SYSTEM_SIZE" -gt 1024 ] && [ "$APP_SIZE" -gt 1024 ]; then
-                echo "✓ Required symbols downloaded successfully"
+                echo "✓ Required symbols extracted successfully"
             else
                 echo "ERROR: Required symbol files are empty or too small"
                 exit 1
