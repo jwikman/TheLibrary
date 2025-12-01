@@ -93,6 +93,23 @@ try {
         }
     }
 
+    # Build with environment variables explicitly passed to ensure they're available during build
+    # The --build-arg approach ensures BC_ARTIFACT_URL reaches the cache-artifacts.ps1 script
+    Write-Host "Building container with BC_ARTIFACT_URL environment variable..." -ForegroundColor Yellow
+
+    $buildEnv = @{}
+    if ($BCArtifactUrl) {
+        $buildEnv['BC_ARTIFACT_URL'] = $BCArtifactUrl
+    }
+    if ($env:SA_PASSWORD) {
+        $buildEnv['SA_PASSWORD'] = $env:SA_PASSWORD
+    }
+
+    # Set environment variables for the build process
+    foreach ($key in $buildEnv.Keys) {
+        [Environment]::SetEnvironmentVariable($key, $buildEnv[$key], [EnvironmentVariableTarget]::Process)
+    }
+
     docker compose build
 }
 finally {
