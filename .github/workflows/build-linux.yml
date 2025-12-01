@@ -7,7 +7,7 @@ on:
     paths:
       - ".github/workflows/build-linux.yml"
       - "scripts/deploy-bc-container-local.ps1"
-      - "scripts/run-tests-odata.ps1"
+      - "scripts/linux/run-tests-odata.ps1"
 
 env:
   AL_VERSION: "17.0.28.6483-beta"
@@ -80,7 +80,7 @@ jobs:
       - name: Run AL Tests in Container via OData
         run: |
           echo "Running AL tests in BC container via OData API..."
-          pwsh ./scripts/run-tests-odata.ps1 \
+          pwsh ./scripts/linux/run-tests-odata.ps1 \
             -BaseUrl "http://localhost:7048/BC" \
             -Tenant "default" \
             -Username "$BC_USERNAME" \
