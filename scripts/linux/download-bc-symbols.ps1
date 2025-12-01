@@ -47,22 +47,22 @@
 #>
 
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$AppJsonPath,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$BaseUrl = "http://localhost:7049/BC",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$Tenant = "default",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$Username = "admin",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$Password = "Admin123!",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$SymbolsFolder = ".alpackages"
 )
 
@@ -124,10 +124,10 @@ function Add-DependencyToQueue {
     if (!$dependenciesToDownload.ContainsKey($key) -and !$downloadedApps.ContainsKey($key)) {
         $dependenciesToDownload[$key] = @{
             Publisher = $Publisher
-            Name = $Name
-            Version = $Version
-            AppId = $AppId
-            Source = $Source
+            Name      = $Name
+            Version   = $Version
+            AppId     = $AppId
+            Source    = $Source
         }
         Write-Host "  + Queued: $Name v$Version (from $Source)" -ForegroundColor DarkGray
     }
@@ -160,6 +160,7 @@ function Download-App {
     Write-Host "  ↓ $symbolsName" -ForegroundColor Cyan
 
     try {
+        Write-Host "Sending request to $url"
         Invoke-WebRequest -Uri $url `
             -Method Get `
             -Headers $Headers `
@@ -172,7 +173,8 @@ function Download-App {
             $fileSize = (Get-Item $symbolsFile).Length
             Write-Host "    ✓ Downloaded ($([Math]::Round($fileSize / 1KB, 2)) KB)" -ForegroundColor Green
             return @{ Success = $true; Skipped = $false; FilePath = $symbolsFile }
-        } else {
+        }
+        else {
             Write-Host "    ✗ Download failed - file not created" -ForegroundColor Red
             throw "File not created after download"
         }
@@ -197,7 +199,8 @@ function Download-App {
                 $fileSize = (Get-Item $symbolsFile).Length
                 Write-Host "    ✓ Downloaded ($([Math]::Round($fileSize / 1KB, 2)) KB)" -ForegroundColor Green
                 return @{ Success = $true; Skipped = $false; FilePath = $symbolsFile }
-            } else {
+            }
+            else {
                 Write-Host "    ✗ Fallback failed - file not created" -ForegroundColor Red
                 throw "File not created after fallback download"
             }
@@ -236,9 +239,9 @@ function Get-PropagatedDependencies {
                 foreach ($dep in $manifest.dependencies) {
                     $propagatedDeps += @{
                         Publisher = $dep.publisher
-                        Name = $dep.name
-                        Version = $dep.version
-                        AppId = $dep.id
+                        Name      = $dep.name
+                        Version   = $dep.version
+                        AppId     = $dep.id
                     }
                 }
             }
@@ -300,7 +303,8 @@ while ($dependenciesToDownload.Count -gt 0) {
     if ($result.Success) {
         if ($result.Skipped) {
             $skippedCount++
-        } else {
+        }
+        else {
             $downloadedCount++
         }
 
@@ -317,7 +321,8 @@ while ($dependenciesToDownload.Count -gt 0) {
                     -Source "propagated from $($dep.Name)"
             }
         }
-    } else {
+    }
+    else {
         $failedCount++
         Write-Host "  ⚠ WARNING: Failed to download $($dep.Name) v$($dep.Version)" -ForegroundColor Yellow
         Write-Host "    Error: $($result.Error)" -ForegroundColor Yellow
@@ -354,7 +359,8 @@ if ($failedCount -gt 0) {
     Write-Host "  3. Verify credentials are correct" -ForegroundColor Gray
     Write-Host "  4. Check BC container logs: docker logs bcserver" -ForegroundColor Gray
     Write-Host ""
-} else {
+}
+else {
     Write-Host "=== Symbol Download Successful ===" -ForegroundColor Green
 }
 
