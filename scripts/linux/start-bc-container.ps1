@@ -24,6 +24,25 @@ Write-Host "Starting Business Central container..." -ForegroundColor Cyan
 Push-Location bcdev-temp
 
 try {
+    # Verify .env file exists before starting
+    if (Test-Path ".env") {
+        Write-Host "✓ .env file found in bcdev-temp directory" -ForegroundColor Green
+        Write-Host "Contents:" -ForegroundColor Gray
+        Get-Content ".env" | ForEach-Object {
+            # Mask password in output
+            if ($_ -match "^SA_PASSWORD=") {
+                Write-Host "  SA_PASSWORD=********" -ForegroundColor Gray
+            }
+            else {
+                Write-Host "  $_" -ForegroundColor Gray
+            }
+        }
+    }
+    else {
+        Write-Host "⚠ Warning: .env file not found in bcdev-temp directory!" -ForegroundColor Yellow
+        Write-Host "Environment variables may not be set correctly" -ForegroundColor Yellow
+    }
+
     # Start the container
     docker compose up -d
 
@@ -79,12 +98,59 @@ try {
         exit 1
     }
 
+    # Verify BC version in the container
+    Write-Host "`nVerifying Business Central version..." -ForegroundColor Cyan
+    try {
+        # Try to get BC version from the container
+        # BCDevOnLinux stores version info in various locations - try multiple approaches
+
+        # Method 1: Check BC artifacts directory structure
+        $bcVersionCheck = docker compose exec -T bc bash -c "ls -d /home/bcartifacts/platform/ServiceTier/* 2>/dev/null | head -1 | xargs basename" 2>$null
+
+        if ($bcVersionCheck -and $bcVersionCheck.Trim()) {
+            Write-Host "✓ BC Platform Version: $($bcVersionCheck.Trim())" -ForegroundColor Green
+        }
+
+        # Method 2: Check the artifact URL that was actually used (from container env)
+        $artifactUrlInContainer = docker compose exec -T bc bash -c "echo `$BC_ARTIFACT_URL" 2>$null
+        if ($artifactUrlInContainer -and $artifactUrlInContainer.Trim()) {
+            Write-Host "✓ BC Artifact URL used: $($artifactUrlInContainer.Trim())" -ForegroundColor Green
+        }
+
+        # Method 3: Check BC Server executable and extract version
+        $bcServerExe = docker compose exec -T bc bash -c "find /home/bcartifacts -name 'Microsoft.Dynamics.Nav.Server.exe' 2>/dev/null | head -1" 2>$null
+        if ($bcServerExe -and $bcServerExe.Trim()) {
+            $exePath = $bcServerExe.Trim()
+            Write-Host "✓ BC Server executable found at: $exePath" -ForegroundColor Green
+
+            # Extract version info from the executable using exiftool or wine's built-in version reader
+            $versionInfo = docker compose exec -T bc bash -c "wine --version 2>/dev/null && exiftool '$exePath' 2>/dev/null | grep -E 'Product Version|File Version' || wine cmd /c ver '$exePath' 2>/dev/null" 2>$null
+
+            # Alternative: Use PowerShell inside Wine to get file version
+            if (-not $versionInfo -or $versionInfo -notmatch '\d+\.\d+') {
+                $versionInfo = docker compose exec -T bc pwsh -c "(Get-Item '$exePath').VersionInfo.FileVersion" 2>$null
+            }
+
+            if ($versionInfo -and $versionInfo.Trim() -match '\d+\.\d+') {
+                Write-Host "✓ BC Server Version: $($versionInfo.Trim())" -ForegroundColor Green
+            }
+        }
+        else {
+            Write-Host "⚠ BC Server executable not found in artifacts" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Host "⚠ Could not verify BC version (container may still be initializing)" -ForegroundColor Yellow
+    }
+
     # Check container status
+    Write-Host "`nContainer status:" -ForegroundColor Cyan
     docker compose ps
-    docker compose logs
+    Write-Host "`nRecent container logs:" -ForegroundColor Cyan
+    docker compose logs --tail=20
 }
 finally {
     Pop-Location
 }
 
-Write-Host "BC container started successfully" -ForegroundColor Green
+Write-Host "`n✓ BC container started successfully" -ForegroundColor Green

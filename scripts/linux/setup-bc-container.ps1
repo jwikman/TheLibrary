@@ -70,7 +70,25 @@ try {
 
     if ($envContent.Count -gt 0) {
         $envContent | Out-File -FilePath ".env" -Encoding utf8
-        Write-Host "Created .env file with configuration" -ForegroundColor Gray
+        Write-Host "Created .env file with configuration:" -ForegroundColor Cyan
+        foreach ($line in $envContent) {
+            # Mask password in output
+            if ($line -match "^SA_PASSWORD=") {
+                Write-Host "  SA_PASSWORD=********" -ForegroundColor Gray
+            }
+            else {
+                Write-Host "  $line" -ForegroundColor Gray
+            }
+        }
+
+        # Verify .env file was created successfully
+        if (Test-Path ".env") {
+            $envFileSize = (Get-Item ".env").Length
+            Write-Host "✓ .env file created successfully ($envFileSize bytes)" -ForegroundColor Green
+        }
+        else {
+            Write-Host "⚠ Warning: .env file creation failed!" -ForegroundColor Yellow
+        }
     }
 
     docker compose build
