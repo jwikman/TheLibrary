@@ -63,13 +63,23 @@ jobs:
 
       - name: Download BC Symbol Packages
         run: |
+          # Download symbols for main App
           pwsh ./scripts/linux/download-bc-symbols.ps1 \
+            -AppJsonPath "./App/app.json" \
             -BaseUrl "http://localhost:7049/BC" \
             -Tenant "default" \
             -Username "admin" \
             -Password "Admin123!" \
-            -SymbolsFolder ".alpackages" \
-            -BCVersion "$BC_VERSION"
+            -SymbolsFolder ".alpackages"
+
+          # Download symbols for TestApp
+          pwsh ./scripts/linux/download-bc-symbols.ps1 \
+            -AppJsonPath "./TestApp/app.json" \
+            -BaseUrl "http://localhost:7049/BC" \
+            -Tenant "default" \
+            -Username "admin" \
+            -Password "Admin123!" \
+            -SymbolsFolder ".alpackages"
 
       - name: Calculate total dependency time
         run: |

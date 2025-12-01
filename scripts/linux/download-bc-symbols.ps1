@@ -5,8 +5,12 @@
 
 .DESCRIPTION
     Downloads BC symbol packages (.app files) from the BC container's developer endpoint.
+    Reads app.json to determine required dependencies and recursively downloads propagated dependencies.
     This approach mirrors BcContainerHelper's Compile-AppInNavContainer.ps1 symbol download logic
     and is compatible with Linux containers.
+
+.PARAMETER AppJsonPath
+    Path to the app.json file (required)
 
 .PARAMETER BaseUrl
     The base URL of the BC container developer endpoint (default: "http://localhost:7049/BC")
@@ -24,19 +28,28 @@
 .PARAMETER SymbolsFolder
     Destination folder for downloaded symbol packages (default: ".alpackages")
 
-.PARAMETER BCVersion
-    BC version number for tracking purposes (optional)
+.EXAMPLE
+    pwsh ./download-bc-symbols.ps1 -AppJsonPath "./App/app.json"
 
 .EXAMPLE
-    pwsh ./download-bc-symbols.ps1 -BaseUrl "http://localhost:7049/BC"
+    pwsh ./download-bc-symbols.ps1 -AppJsonPath "./TestApp/app.json" -BaseUrl "http://localhost:7049/BC"
 
 .NOTES
     This script uses the BC developer endpoint (/dev/packages) to download symbol packages.
     Based on BcContainerHelper's Compile-AppInNavContainer.ps1 symbol download logic.
     Compatible with Linux containers and GitHub Actions runners.
+
+    Dependencies are resolved from:
+    - app.json "dependencies" array
+    - app.json "platform" version -> System app
+    - app.json "application" version -> Application app
+    - Propagated dependencies from downloaded apps (recursive)
 #>
 
 param(
+    [Parameter(Mandatory=$true)]
+    [string]$AppJsonPath,
+
     [Parameter(Mandatory=$false)]
     [string]$BaseUrl = "http://localhost:7049/BC",
 
@@ -50,10 +63,7 @@ param(
     [string]$Password = "Admin123!",
 
     [Parameter(Mandatory=$false)]
-    [string]$SymbolsFolder = ".alpackages",
-
-    [Parameter(Mandatory=$false)]
-    [string]$BCVersion = ""
+    [string]$SymbolsFolder = ".alpackages"
 )
 
 # Enable strict mode
@@ -62,10 +72,26 @@ $ErrorActionPreference = "Stop"
 
 $StartTime = Get-Date
 
+# Verify app.json exists
+if (!(Test-Path $AppJsonPath)) {
+    Write-Host "ERROR: app.json not found at: $AppJsonPath" -ForegroundColor Red
+    exit 1
+}
+
+# Read and parse app.json
 Write-Host "=== BC Symbol Package Download via Developer Endpoint ===" -ForegroundColor Cyan
+Write-Host "App.json: $AppJsonPath" -ForegroundColor Gray
 Write-Host "Developer Endpoint: $BaseUrl" -ForegroundColor Gray
 Write-Host "Tenant: $Tenant" -ForegroundColor Gray
 Write-Host "Symbols Folder: $SymbolsFolder" -ForegroundColor Gray
+Write-Host ""
+
+$appJson = Get-Content $AppJsonPath -Raw | ConvertFrom-Json
+Write-Host "App: $($appJson.name) v$($appJson.version) by $($appJson.publisher)" -ForegroundColor Cyan
+Write-Host "Platform: $($appJson.platform)" -ForegroundColor Gray
+if ($appJson.PSObject.Properties.Name -contains "application") {
+    Write-Host "Application: $($appJson.application)" -ForegroundColor Gray
+}
 Write-Host ""
 
 # Create symbols folder
@@ -82,55 +108,60 @@ $Headers = @{
     "Authorization" = "Basic $base64AuthInfo"
 }
 
-# Define dependencies to download
-# Based on app.json and testApp.json dependencies for The Library project
-# Using version 26.0.0.0 to match platform/application version from app.json
-$dependencies = @(
-    @{ Publisher = "Microsoft"; Name = "System"; Version = "26.0.0.0"; AppId = "8874ed3a-0643-4247-9ced-7a7002f7135d" }
-    @{ Publisher = "Microsoft"; Name = "System Application"; Version = "26.0.0.0"; AppId = "63ca2fa4-4f03-4f2b-a480-172fef340d3f" }
-    @{ Publisher = "Microsoft"; Name = "Business Foundation"; Version = "26.0.0.0"; AppId = "f3552374-a1f2-4356-848e-196002525837" }
-    @{ Publisher = "Microsoft"; Name = "Base Application"; Version = "26.0.0.0"; AppId = "437dbf0e-84ff-417a-965d-ed2bb9650972" }
-    @{ Publisher = "Microsoft"; Name = "Application"; Version = "26.0.0.0"; AppId = "c1335042-3002-4257-bf8a-75c898ccb1b8" }
-    # Test dependencies from TestApp/app.json
-    @{ Publisher = "Microsoft"; Name = "Any"; Version = "26.0.0.0"; AppId = "e7320ebb-08b3-4406-b1ec-b4927d3e280b" }
-    @{ Publisher = "Microsoft"; Name = "Library Assert"; Version = "26.0.0.0"; AppId = "dd0be2ea-f733-4d65-bb34-a28f4624fb14" }
-    @{ Publisher = "Microsoft"; Name = "Library Variable Storage"; Version = "26.0.0.0"; AppId = "5095f467-0a01-4b99-99d1-9ff1237d286f" }
-    @{ Publisher = "Microsoft"; Name = "Test Runner"; Version = "26.0.0.0"; AppId = "23de40a6-dfe8-4f80-80db-d70f83ce8caf" }
-)
+# Track all dependencies to download (with deduplication by AppId)
+$dependenciesToDownload = @{}
+$downloadedApps = @{}
 
-Write-Host "Downloading symbol packages..." -ForegroundColor Yellow
-Write-Host ""
+# Helper function to add dependency to download queue
+function Add-DependencyToQueue {
+    param(
+        [string]$Publisher,
+        [string]$Name,
+        [string]$Version,
+        [string]$AppId,
+        [string]$Source
+    )
 
-$downloadedCount = 0
-$skippedCount = 0
-$failedCount = 0
+    $key = $AppId.ToLower()
+    if (!$dependenciesToDownload.ContainsKey($key) -and !$downloadedApps.ContainsKey($key)) {
+        $dependenciesToDownload[$key] = @{
+            Publisher = $Publisher
+            Name = $Name
+            Version = $Version
+            AppId = $AppId
+            Source = $Source
+        }
+        Write-Host "  + Queued: $Name v$Version (from $Source)" -ForegroundColor DarkGray
+    }
+}
 
-foreach ($dep in $dependencies) {
-    $publisher = [uri]::EscapeDataString($dep.Publisher)
-    $name = [uri]::EscapeDataString($dep.Name)
-    $version = $dep.Version
-    $appId = $dep.AppId
+# Helper function to download a single app
+function Download-App {
+    param(
+        [hashtable]$Dependency
+    )
+
+    $publisher = [uri]::EscapeDataString($Dependency.Publisher)
+    $name = [uri]::EscapeDataString($Dependency.Name)
+    $version = $Dependency.Version
+    $appId = $Dependency.AppId
 
     # Create filename for the symbol package
-    $symbolsName = "$($dep.Publisher)_$($dep.Name)_$($version).app" -replace '[\\/:*?"<>|]', '_'
+    $symbolsName = "$($Dependency.Publisher)_$($Dependency.Name)_$($version).app" -replace '[\\/:*?"<>|]', '_'
     $symbolsFile = Join-Path $SymbolsFolder $symbolsName
 
     # Skip if already exists
     if (Test-Path $symbolsFile) {
         Write-Host "  ↷ $symbolsName (already exists)" -ForegroundColor DarkGray
-        $skippedCount++
-        continue
+        return @{ Success = $true; Skipped = $true; FilePath = $symbolsFile }
     }
 
     # Construct developer endpoint URL
-    # Using publisher&appName&versionText&appId&tenant format (matches BcContainerHelper pattern)
     $url = "$BaseUrl/dev/packages?publisher=$publisher&appName=$name&versionText=$version&appId=$appId&tenant=$Tenant"
 
     Write-Host "  ↓ $symbolsName" -ForegroundColor Cyan
-    Write-Host "    URL: $url" -ForegroundColor DarkGray
 
     try {
-        # Download using Invoke-WebRequest for better control
         Invoke-WebRequest -Uri $url `
             -Method Get `
             -Headers $Headers `
@@ -142,20 +173,19 @@ foreach ($dep in $dependencies) {
         if (Test-Path $symbolsFile) {
             $fileSize = (Get-Item $symbolsFile).Length
             Write-Host "    ✓ Downloaded ($([Math]::Round($fileSize / 1KB, 2)) KB)" -ForegroundColor Green
-            $downloadedCount++
+            return @{ Success = $true; Skipped = $false; FilePath = $symbolsFile }
         } else {
             Write-Host "    ✗ Download failed - file not created" -ForegroundColor Red
-            $failedCount++
+            throw "File not created after download"
         }
     }
     catch {
         Write-Host "    ✗ Download failed: $($_.Exception.Message)" -ForegroundColor Red
 
-        # Try fallback URL without appId (for older BC versions)
+        # Try fallback URL without appId
         try {
             Write-Host "    ↻ Retrying without appId parameter..." -ForegroundColor Yellow
             $legacyUrl = "$BaseUrl/dev/packages?publisher=$publisher&appName=$name&versionText=$version&tenant=$Tenant"
-            Write-Host "    URL: $legacyUrl" -ForegroundColor DarkGray
 
             Invoke-WebRequest -Uri $legacyUrl `
                 -Method Get `
@@ -168,16 +198,132 @@ foreach ($dep in $dependencies) {
             if (Test-Path $symbolsFile) {
                 $fileSize = (Get-Item $symbolsFile).Length
                 Write-Host "    ✓ Downloaded ($([Math]::Round($fileSize / 1KB, 2)) KB)" -ForegroundColor Green
-                $downloadedCount++
+                return @{ Success = $true; Skipped = $false; FilePath = $symbolsFile }
             } else {
-                Write-Host "    ✗ Download failed - file not created" -ForegroundColor Red
-                $failedCount++
+                Write-Host "    ✗ Fallback failed - file not created" -ForegroundColor Red
+                throw "File not created after fallback download"
             }
         }
         catch {
             Write-Host "    ✗ Fallback also failed: $($_.Exception.Message)" -ForegroundColor Red
-            $failedCount++
+            return @{ Success = $false; Skipped = $false; Error = $_.Exception.Message }
         }
+    }
+}
+
+# Helper function to extract propagated dependencies from an app file
+function Get-PropagatedDependencies {
+    param(
+        [string]$AppFilePath,
+        [string]$AppName
+    )
+
+    try {
+        # Use AL tool to get package manifest
+        $manifestJson = & al GetPackageManifest "$AppFilePath" 2>&1
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "    ⚠ Could not read manifest from $AppName" -ForegroundColor Yellow
+            return @()
+        }
+
+        $manifest = $manifestJson | ConvertFrom-Json
+
+        # Check if this app propagates dependencies
+        if ($manifest.PSObject.Properties.Name -contains "propagateDependencies" -and $manifest.propagateDependencies -eq $true) {
+            Write-Host "    → $AppName propagates dependencies" -ForegroundColor Cyan
+
+            $propagatedDeps = @()
+            if ($manifest.PSObject.Properties.Name -contains "dependencies") {
+                foreach ($dep in $manifest.dependencies) {
+                    $propagatedDeps += @{
+                        Publisher = $dep.publisher
+                        Name = $dep.name
+                        Version = $dep.version
+                        AppId = $dep.id
+                    }
+                }
+            }
+            return $propagatedDeps
+        }
+
+        return @()
+    }
+    catch {
+        Write-Host "    ⚠ Error reading manifest from $AppName: $($_.Exception.Message)" -ForegroundColor Yellow
+        return @()
+    }
+}
+
+Write-Host "Analyzing dependencies from app.json..." -ForegroundColor Yellow
+Write-Host ""
+
+# Add System app (from platform version)
+if ($appJson.PSObject.Properties.Name -contains "platform" -and $appJson.platform) {
+    Add-DependencyToQueue -Publisher "Microsoft" -Name "System" -Version $appJson.platform `
+        -AppId "8874ed3a-0643-4247-9ced-7a7002f7135d" -Source "platform"
+}
+
+# Add Application app (from application version)
+if ($appJson.PSObject.Properties.Name -contains "application" -and $appJson.application) {
+    Add-DependencyToQueue -Publisher "Microsoft" -Name "Application" -Version $appJson.application `
+        -AppId "c1335042-3002-4257-bf8a-75c898ccb1b8" -Source "application"
+}
+
+# Add explicit dependencies from app.json
+if ($appJson.PSObject.Properties.Name -contains "dependencies" -and $appJson.dependencies) {
+    foreach ($dep in $appJson.dependencies) {
+        $depId = if ($dep.PSObject.Properties.Name -contains "id") { $dep.id } else { $dep.appId }
+        $depVersion = if ($dep.PSObject.Properties.Name -contains "version") { $dep.version } else { "1.0.0.0" }
+
+        Add-DependencyToQueue -Publisher $dep.publisher -Name $dep.name -Version $depVersion `
+            -AppId $depId -Source "app.json dependencies"
+    }
+}
+
+Write-Host ""
+Write-Host "Downloading symbol packages..." -ForegroundColor Yellow
+Write-Host ""
+
+$downloadedCount = 0
+$skippedCount = 0
+$failedCount = 0
+
+# Process dependencies queue (will grow as we discover propagated dependencies)
+while ($dependenciesToDownload.Count -gt 0) {
+    # Get next dependency to download
+    $key = $dependenciesToDownload.Keys | Select-Object -First 1
+    $dep = $dependenciesToDownload[$key]
+    $dependenciesToDownload.Remove($key)
+
+    # Download the app
+    $result = Download-App -Dependency $dep
+
+    if ($result.Success) {
+        if ($result.Skipped) {
+            $skippedCount++
+        } else {
+            $downloadedCount++
+        }
+
+        # Mark as downloaded
+        $downloadedApps[$key] = $dep
+
+        # Check for propagated dependencies
+        if ($result.FilePath) {
+            $propagatedDeps = Get-PropagatedDependencies -AppFilePath $result.FilePath -AppName $dep.Name
+
+            foreach ($propDep in $propagatedDeps) {
+                Add-DependencyToQueue -Publisher $propDep.Publisher -Name $propDep.Name `
+                    -Version $propDep.Version -AppId $propDep.AppId `
+                    -Source "propagated from $($dep.Name)"
+            }
+        }
+    } else {
+        $failedCount++
+        Write-Host "ERROR: Failed to download $($dep.Name) v$($dep.Version)" -ForegroundColor Red
+        Write-Host "This is required - aborting download process" -ForegroundColor Red
+        exit 1
     }
 }
 
