@@ -27,13 +27,11 @@ jobs:
 
       - name: Setup .NET 8.0 and AL Tools
         run: |
-          chmod +x ./scripts/linux/setup-dotnet-and-al.sh
-          ./scripts/linux/setup-dotnet-and-al.sh "$AL_VERSION"
+          pwsh ./scripts/linux/setup-dotnet-and-al.ps1 -ALVersion "$AL_VERSION"
 
       - name: Setup BC Container
         run: |
-          chmod +x ./scripts/linux/setup-bc-container.sh
-          ./scripts/linux/setup-bc-container.sh "$BCDEV_REPO" "$BCDEV_BRANCH"
+          pwsh ./scripts/linux/setup-bc-container.ps1 -BCDevRepo "$BCDEV_REPO" -BCDevBranch "$BCDEV_BRANCH"
 
       - name: Start BC Container
         run: |
