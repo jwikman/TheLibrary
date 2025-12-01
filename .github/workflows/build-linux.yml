@@ -35,8 +35,7 @@ jobs:
 
       - name: Start BC Container
         run: |
-          chmod +x ./scripts/linux/start-bc-container.sh
-          ./scripts/linux/start-bc-container.sh 1200
+          pwsh ./scripts/linux/start-bc-container.ps1 -MaxWaitSeconds 1200
 
       - name: Create dependencies directory
         run: |
@@ -74,8 +73,7 @@ jobs:
 
       - name: Publish Apps to Container
         run: |
-          chmod +x ./scripts/linux/publish-apps-to-container.sh
-          ./scripts/linux/publish-apps-to-container.sh "http://localhost:7049" "admin" "Admin123!"
+          pwsh ./scripts/linux/publish-apps-to-container.ps1 -BaseUrl "http://localhost:7049" -Username "admin" -Password "Admin123!"
 
       - name: Run AL Tests in Container via OData
         run: |
