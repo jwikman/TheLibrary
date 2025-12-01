@@ -22,7 +22,9 @@
 #>
 
 param(
+    [Parameter(Mandatory = $false)]
     [string]$BCDevRepo = "https://github.com/StefanMaron/BCDevOnLinux.git",
+    [Parameter(Mandatory = $false)]
     [string]$BCDevBranch = "main",
     [Parameter(Mandatory = $true)]
     [string]$BCArtifactUrl

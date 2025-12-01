@@ -56,7 +56,6 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$Tenant = "default",
 
-    [Parameter(Mandatory = $false)]
     [Parameter(Mandatory = $true)]
     [string]$Username,
 
