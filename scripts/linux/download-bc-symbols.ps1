@@ -250,7 +250,7 @@ function Get-PropagatedDependencies {
         return @()
     }
     catch {
-        Write-Host "    ⚠ Error reading manifest from $AppName: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "    ⚠ Error reading manifest from $($AppName): $($_.Exception.Message)" -ForegroundColor Yellow
         return @()
     }
 }
