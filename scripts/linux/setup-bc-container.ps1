@@ -12,14 +12,19 @@
 .PARAMETER BCDevBranch
     BCDevOnLinux repository branch (default: main)
 
+.PARAMETER BCArtifactUrl
+    BC Artifact URL to use for the container (optional - uses BCDevOnLinux defaults if not provided)
+
 .EXAMPLE
     ./setup-bc-container.ps1
     ./setup-bc-container.ps1 -BCDevRepo "https://github.com/StefanMaron/BCDevOnLinux.git" -BCDevBranch "main"
+    ./setup-bc-container.ps1 -BCArtifactUrl "https://bcartifacts.azureedge.net/sandbox/27.1/w1"
 #>
 
 param(
     [string]$BCDevRepo = "https://github.com/StefanMaron/BCDevOnLinux.git",
-    [string]$BCDevBranch = "main"
+    [string]$BCDevBranch = "main",
+    [string]$BCArtifactUrl = "https://bcartifacts-exdbf9fwegejdqak.b02.azurefd.net/sandbox/27.1.41698.42876/w1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,6 +48,16 @@ docker pull stefanmaronbc/bc-wine-base:latest
 Write-Host "Building Business Central container..." -ForegroundColor Yellow
 Push-Location bcdev-temp
 try {
+    # Create .env file with BC version configuration if artifact URL provided
+    if ($BCArtifactUrl) {
+        Write-Host "Using BC Artifact URL: $BCArtifactUrl" -ForegroundColor Cyan
+        "BC_ARTIFACT_URL=$BCArtifactUrl" | Out-File -FilePath ".env" -Encoding utf8
+        Write-Host "Created .env file with BC artifact configuration" -ForegroundColor Gray
+    }
+    else {
+        Write-Host "No BC artifact URL specified - using BCDevOnLinux defaults" -ForegroundColor Yellow
+    }
+
     docker compose build
 }
 finally {
