@@ -85,12 +85,7 @@ try {
         Write-Host "Final status: $healthStatus" -ForegroundColor Red
         Write-Host "Printing full container logs:" -ForegroundColor Yellow
         docker compose ps
-        if ($IncludeSqlLogs) {
-            docker compose logs
-        } else {
-            Write-Host "`nBC Container logs (use -IncludeSqlLogs to see SQL logs):" -ForegroundColor Cyan
-            docker compose logs bc
-        }
+        docker compose logs
         exit 1
     }
 
