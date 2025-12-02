@@ -27,7 +27,8 @@ jobs:
 
       - name: Setup .NET 8.0 and AL Tools
         run: |
-          pwsh ./scripts/linux/setup-dotnet-and-al.ps1 -ALVersion "$AL_VERSION"
+          pwsh ./scripts/linux/setup-dotnet-and-al.ps1 \
+            -ALVersion "$AL_VERSION"
 
       - name: Get Latest BC Artifact URL
         id: get-bc-artifact
@@ -45,10 +46,15 @@ jobs:
           BC_USERNAME: ${{ env.BC_USERNAME }}
           BC_PASSWORD: ${{ env.BC_PASSWORD }}
         run: |
-          pwsh ./scripts/linux/setup-bc-container.ps1 -BCDevRepo "$BCDEV_REPO" -BCDevBranch "$BCDEV_BRANCH" -BCArtifactUrl "${{ steps.get-bc-artifact.outputs.artifact-url }}"
+          pwsh ./scripts/linux/setup-bc-container.ps1 \
+            -BCDevRepo "$BCDEV_REPO" \
+            -BCDevBranch "$BCDEV_BRANCH" \
+            -BCArtifactUrl "${{ steps.get-bc-artifact.outputs.artifact-url }}"
 
       - name: Start BC Container
         run: |
+          pwsh ./scripts/linux/start-bc-container.ps1 \
+            -MaxWaitSeconds 1200
           pwsh ./scripts/linux/start-bc-container.ps1 -MaxWaitSeconds 1200
 
       - name: Create dependencies directory
@@ -68,7 +74,8 @@ jobs:
 
       - name: Compile Main App
         run: |
-          pwsh ./scripts/linux/compile-al-apps.ps1 -ProjectPath "./App"
+          pwsh ./scripts/linux/compile-al-apps.ps1 \
+            -ProjectPath "./App"
 
       - name: Download BC Symbol Packages for Test App
         env:
@@ -83,7 +90,8 @@ jobs:
 
       - name: Compile Test App
         run: |
-          pwsh ./scripts/linux/compile-al-apps.ps1 -ProjectPath "./TestApp"
+          pwsh ./scripts/linux/compile-al-apps.ps1 \
+            -ProjectPath "./TestApp"
 
       - name: Publish Apps to Container
         env:
