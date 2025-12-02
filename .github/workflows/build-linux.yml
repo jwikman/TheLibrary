@@ -42,6 +42,7 @@ jobs:
       - name: Setup BC Container
         env:
           SA_PASSWORD: ${{ env.SA_PASSWORD }}
+          BC_USERNAME: ${{ env.BC_USERNAME }}
           BC_PASSWORD: ${{ env.BC_PASSWORD }}
         run: |
           pwsh ./scripts/linux/setup-bc-container.ps1 -BCDevRepo "$BCDEV_REPO" -BCDevBranch "$BCDEV_BRANCH" -BCArtifactUrl "${{ steps.get-bc-artifact.outputs.artifact-url }}"

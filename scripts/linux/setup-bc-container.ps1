@@ -22,6 +22,7 @@
 .NOTES
     Requires environment variables:
     - SA_PASSWORD: SQL Server SA password
+    - BC_USERNAME: Business Central admin username
     - BC_PASSWORD: Business Central admin user password
 #>
 
@@ -84,6 +85,12 @@ try {
     if ($env:SA_PASSWORD) {
         Write-Host "Setting SQL SA password from environment" -ForegroundColor Gray
         $envContent += "SA_PASSWORD=$env:SA_PASSWORD"
+    }
+
+    # Add ADMIN_USERNAME from environment variable (BC admin username)
+    if ($env:BC_USERNAME) {
+        Write-Host "Setting BC admin username from environment" -ForegroundColor Gray
+        $envContent += "ADMIN_USERNAME=$env:BC_USERNAME"
     }
 
     # Add ADMIN_PASSWORD from environment variable (BC admin user password)
