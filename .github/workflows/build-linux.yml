@@ -30,13 +30,13 @@ jobs:
           pwsh ./scripts/linux/setup-dotnet-and-al.ps1 \
             -ALVersion "$AL_VERSION"
 
-      - name: Get Latest BC Artifact URL
+      - name: Get Weekly BC Artifact URL
         id: get-bc-artifact
         run: |
           pwsh -Command "
             Install-Module -Name BcContainerHelper -Force -AllowClobber -Scope CurrentUser
-            \$artifactUrl = Get-BcArtifactUrl -type Sandbox -country w1 -select Latest
-            Write-Host \"Latest BC Artifact URL: \$artifactUrl\"
+            \$artifactUrl = Get-BcArtifactUrl -type Sandbox -country w1 -select Weekly
+            Write-Host \"Weekly BC Artifact URL: \$artifactUrl\"
             echo \"artifact-url=\$artifactUrl\" >> \$env:GITHUB_OUTPUT
           "
 
