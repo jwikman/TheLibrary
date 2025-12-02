@@ -65,18 +65,10 @@ try {
             $sinceSeconds = [int]($currentTimestamp - $lastLogTimestamp).TotalSeconds + 1
 
             if ($sinceSeconds -gt 0) {
-                $logOutput = docker compose logs --since="${sinceSeconds}s" bc 2>$null
-                if ($logOutput) {
-                    Write-Host "[BC Container Log - ${elapsed}s]" -ForegroundColor Cyan
-                    Write-Host $logOutput
-                }
+                docker compose logs --since="${sinceSeconds}s" bc 2>$null
 
                 if ($IncludeSqlLogs) {
-                    $sqlLogOutput = docker compose logs --since="${sinceSeconds}s" sql 2>$null
-                    if ($sqlLogOutput) {
-                        Write-Host "[SQL Server Log - ${elapsed}s]" -ForegroundColor DarkCyan
-                        Write-Host $sqlLogOutput
-                    }
+                    docker compose logs --since="${sinceSeconds}s" sql 2>$null
                 }
             }
             $lastLogTimestamp = $currentTimestamp
@@ -111,10 +103,10 @@ try {
         # If we weren't showing incremental logs, show them now for debugging
         if ($Quiet) {
             Write-Host "`nBC Container logs:" -ForegroundColor Yellow
-            docker compose logs bc
+            docker compose logs bc 2>$null
             if ($IncludeSqlLogs) {
                 Write-Host "`nSQL Server logs:" -ForegroundColor Yellow
-                docker compose logs sql
+                docker compose logs sql 2>$null
             }
         }
         exit 1
@@ -131,18 +123,10 @@ try {
         $sinceSeconds = [int]($currentTimestamp - $lastLogTimestamp).TotalSeconds + 1
 
         if ($sinceSeconds -gt 0) {
-            $logOutput = docker compose logs --since="${sinceSeconds}s" bc 2>$null
-            if ($logOutput) {
-                Write-Host "`nTrailing BC Container logs:" -ForegroundColor Cyan
-                Write-Host $logOutput
-            }
+            docker compose logs --since="${sinceSeconds}s" bc 2>$null
 
             if ($IncludeSqlLogs) {
-                $sqlLogOutput = docker compose logs --since="${sinceSeconds}s" sql 2>$null
-                if ($sqlLogOutput) {
-                    Write-Host "`nTrailing SQL Server logs:" -ForegroundColor DarkCyan
-                    Write-Host $sqlLogOutput
-                }
+                docker compose logs --since="${sinceSeconds}s" sql 2>$null
             }
         }
     }
