@@ -32,7 +32,7 @@ try {
     # Create PowerShell script to run inside container
     $containerScript = @'
 # Import BC Management module
-Import-Module 'C:\Program Files\Microsoft Dynamics NAV\*\Service\Microsoft.Dynamics.Nav.Management.dll' -ErrorAction Stop
+Import-Module "$($env:HOME)/.local/share/wineprefixes/bc1/drive_c/Program Files/Microsoft Dynamics NAV/*/Service/Microsoft.Dynamics.Nav.Management.dll" -ErrorAction Stop
 
 $serverInstance = 'BC'
 $tenant = 'default'
