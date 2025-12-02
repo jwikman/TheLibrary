@@ -41,50 +41,62 @@ try {
     # Wait for container to become healthy (can take up to 10 minutes)...
     Write-Host "Waiting for BC container to become healthy (this can take up to 10 minutes)..." -ForegroundColor Yellow
     $containerName = (docker compose ps -q | Select-Object -First 1)
-    $elapsed = 0
-    $healthStatus = ""
-    $prevHealthStatus = ""
-    $lastLogTimestamp = Get-Date
 
-    while ($elapsed -lt $MaxWaitSeconds) {
-        try {
-            $healthStatus = docker inspect --format='{{.State.Health.Status}}' $containerName 2>$null
-            if (-not $healthStatus) { $healthStatus = "unknown" }
-        }
-        catch {
-            $healthStatus = "unknown"
-        }
+    # Start log streaming in background if not in Quiet mode
+    $logJob = $null
+    if (-not $Quiet) {
+        $services = if ($IncludeSqlLogs) { @("bc", "sql") } else { @("bc") }
+        $logJob = Start-Job -ScriptBlock {
+            param($services)
+            Push-Location $using:PWD
+            docker compose logs --follow $services
+            Pop-Location
+        } -ArgumentList (,$services)
+    }
 
-        if ($healthStatus -eq "healthy") {
-            Write-Host "✓ BC container is healthy and ready" -ForegroundColor Green
-            break
-        }
-        # Show incremental logs unless Quiet mode is enabled
-        if (-not $Quiet) {
-            $currentTimestamp = Get-Date
-            # Add 1 second overlap to prevent gaps due to timing precision
-            $sinceSeconds = [int]($currentTimestamp - $lastLogTimestamp).TotalSeconds + 1
+    try {
+        $elapsed = 0
+        $healthStatus = ""
+        $prevHealthStatus = ""
 
-            if ($sinceSeconds -gt 0) {
-                docker compose logs --since="${sinceSeconds}s" bc 2>$null
-
-                if ($IncludeSqlLogs) {
-                    docker compose logs --since="${sinceSeconds}s" sql 2>$null
-                }
+        while ($elapsed -lt $MaxWaitSeconds) {
+            try {
+                $healthStatus = docker inspect --format='{{.State.Health.Status}}' $containerName 2>$null
+                if (-not $healthStatus) { $healthStatus = "unknown" }
             }
-            $lastLogTimestamp = $currentTimestamp
-        }
+            catch {
+                $healthStatus = "unknown"
+            }
 
-        # Check if container became unhealthy (was starting, now unhealthy)
-        if ($healthStatus -eq "unhealthy" -and $prevHealthStatus -ne "unhealthy") {
-            Write-Host "⚠ Container became unhealthy" -ForegroundColor Yellow
-            docker compose ps
-        }
+            if ($healthStatus -eq "healthy") {
+                Write-Host "✓ BC container is healthy and ready" -ForegroundColor Green
+                break
+            }
 
-        Write-Host "Container status: $healthStatus (waited ${elapsed}s / ${MaxWaitSeconds}s)" -ForegroundColor Gray
-        $prevHealthStatus = $healthStatus
-        Start-Sleep -Seconds 10
-        $elapsed += 10
+            # Output any new log data from background job
+            if ($logJob) {
+                Receive-Job -Job $logJob
+            }
+
+            # Check if container became unhealthy (was starting, now unhealthy)
+            if ($healthStatus -eq "unhealthy" -and $prevHealthStatus -ne "unhealthy") {
+                Write-Host "⚠ Container became unhealthy" -ForegroundColor Yellow
+                docker compose ps
+            }
+
+            Write-Host "Container status: $healthStatus (waited ${elapsed}s / ${MaxWaitSeconds}s)" -ForegroundColor Gray
+            $prevHealthStatus = $healthStatus
+            Start-Sleep -Seconds 10
+            $elapsed += 10
+        }
+    }
+    finally {
+        # Receive any remaining log output and stop log streaming
+        if ($logJob) {
+            Receive-Job -Job $logJob
+            Stop-Job -Job $logJob
+            Remove-Job -Job $logJob
+        }
     }
 
     # Final health check after loop completes (in case timeout was reached while healthy)
@@ -116,21 +128,6 @@ try {
     # Check container status
     Write-Host "`nContainer status:" -ForegroundColor Cyan
     docker compose ps
-
-    # Show any trailing logs that weren't printed during the loop
-    if (-not $Quiet) {
-        $currentTimestamp = Get-Date
-        # Add 1 second overlap to prevent gaps due to timing precision
-        $sinceSeconds = [int]($currentTimestamp - $lastLogTimestamp).TotalSeconds + 1
-
-        if ($sinceSeconds -gt 0) {
-            docker compose logs --since="${sinceSeconds}s" bc 2>$null
-
-            if ($IncludeSqlLogs) {
-                docker compose logs --since="${sinceSeconds}s" sql 2>$null
-            }
-        }
-    }
 }
 finally {
     Pop-Location
