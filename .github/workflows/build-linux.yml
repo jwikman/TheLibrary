@@ -65,8 +65,7 @@ jobs:
 
       - name: Compile Main App
         run: |
-          chmod +x ./scripts/linux/compile-al-apps.sh
-          ./scripts/linux/compile-al-apps.sh "./App"
+          pwsh ./scripts/linux/compile-al-apps.ps1 -ProjectPath "./App"
 
       - name: Download BC Symbol Packages for Test App
         run: |
@@ -80,8 +79,7 @@ jobs:
 
       - name: Compile Test App
         run: |
-          chmod +x ./scripts/linux/compile-al-apps.sh
-          ./scripts/linux/compile-al-apps.sh "./TestApp"
+          pwsh ./scripts/linux/compile-al-apps.ps1 -ProjectPath "./TestApp"
 
       - name: Publish Apps to Container
         run: |
