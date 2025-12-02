@@ -21,23 +21,24 @@
 .PARAMETER Username
     Username for authentication (required)
 
-.PARAMETER Password
-    Password for authentication (required)
-    Note: Using String type for compatibility with BC container default credentials
-
 .PARAMETER SymbolsFolder
     Destination folder for downloaded symbol packages (default: ".alpackages")
 
 .EXAMPLE
-    pwsh ./download-bc-symbols.ps1 -AppJsonPath "./App/app.json"
+    $env:BC_PASSWORD = "Admin123!"
+    pwsh ./download-bc-symbols.ps1 -AppJsonPath "./App/app.json" -Username "admin"
 
 .EXAMPLE
-    pwsh ./download-bc-symbols.ps1 -AppJsonPath "./TestApp/app.json" -BaseUrl "http://localhost:7049/BC"
+    $env:BC_PASSWORD = "Admin123!"
+    pwsh ./download-bc-symbols.ps1 -AppJsonPath "./TestApp/app.json" -BaseUrl "http://localhost:7049/BC" -Username "admin"
 
 .NOTES
     This script uses the BC developer endpoint (/dev/packages) to download symbol packages.
     Based on BcContainerHelper's Compile-AppInNavContainer.ps1 symbol download logic.
     Compatible with Linux containers and GitHub Actions runners.
+
+    Requires environment variable:
+    - BC_PASSWORD: Business Central admin user password
 
     Dependencies are resolved from:
     - app.json "dependencies" array
@@ -59,9 +60,6 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Username,
 
-    [Parameter(Mandatory = $true)]
-    [string]$Password,
-
     [Parameter(Mandatory = $false)]
     [string]$SymbolsFolder = ".alpackages"
 )
@@ -69,6 +67,14 @@ param(
 # Enable strict mode
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# Get password from environment variable
+if (-not $env:BC_PASSWORD) {
+    Write-Host "ERROR: BC_PASSWORD environment variable not set" -ForegroundColor Red
+    Write-Host "Set it with: `$env:BC_PASSWORD = 'YourPassword'" -ForegroundColor Yellow
+    exit 1
+}
+$Password = $env:BC_PASSWORD
 
 # Verify app.json exists
 if (!(Test-Path $AppJsonPath)) {

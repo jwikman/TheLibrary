@@ -12,25 +12,35 @@
 .PARAMETER Username
     Username for authentication (required)
 
-.PARAMETER Password
-    Password for authentication (required)
+.EXAMPLE
+    $env:BC_PASSWORD = "Admin123!"
+    ./publish-apps-to-container.ps1 -Username "admin"
 
 .EXAMPLE
-    ./publish-apps-to-container.ps1 -Username "admin" -Password "Admin123!"
-    ./publish-apps-to-container.ps1 -BaseUrl "http://localhost:7049" -Username "admin" -Password "Admin123!"
+    $env:BC_PASSWORD = "Admin123!"
+    ./publish-apps-to-container.ps1 -BaseUrl "http://localhost:7049" -Username "admin"
+
+.NOTES
+    Requires environment variable:
+    - BC_PASSWORD: Business Central admin user password
 #>
 
 param(
     [string]$BaseUrl = "http://localhost:7049",
 
     [Parameter(Mandatory = $true)]
-    [string]$Username,
-
-    [Parameter(Mandatory = $true)]
-    [string]$Password
+    [string]$Username
 )
 
 $ErrorActionPreference = "Stop"
+
+# Get password from environment variable
+if (-not $env:BC_PASSWORD) {
+    Write-Host "ERROR: BC_PASSWORD environment variable not set" -ForegroundColor Red
+    Write-Host "Set it with: `$env:BC_PASSWORD = 'YourPassword'" -ForegroundColor Yellow
+    exit 1
+}
+$Password = $env:BC_PASSWORD
 
 Write-Host "=== Publishing Apps to BC Container ===" -ForegroundColor Cyan
 
