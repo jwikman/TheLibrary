@@ -34,9 +34,11 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "=== Publishing Apps to BC Container ===" -ForegroundColor Cyan
 
-# Create credentials for authentication
-$securePassword = ConvertTo-SecureString $Password -AsPlainText -Force
-$credential = New-Object System.Management.Automation.PSCredential($Username, $securePassword)
+# Create Basic auth header
+$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${Username}:${Password}"))
+$Headers = @{
+    "Authorization" = "Basic $base64AuthInfo"
+}
 
 # Publish Main App
 Write-Host "Publishing The Library (main app) to BC container..." -ForegroundColor Yellow
@@ -52,7 +54,7 @@ Write-Host "Publishing app file: $($appFile.FullName)" -ForegroundColor Gray
 
 # Publish extension to BC container using API
 $uri = "$BaseUrl/BC/dev/apps?tenant=default&SchemaUpdateMode=synchronize&DependencyPublishingOption=default"
-$response = Invoke-WebRequest -Uri $uri -Method Post -Credential $credential `
+$response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
     -InFile $appFile.FullName -ContentType "application/octet-stream" `
     -UseBasicParsing -AllowUnencryptedAuthentication
 
@@ -77,9 +79,9 @@ if (-not $testAppFile) {
 Write-Host "Publishing test app file: $($testAppFile.FullName)" -ForegroundColor Gray
 
 # Publish extension to BC container using API
-$response = Invoke-WebRequest -Uri $uri -Method Post -Credential $credential `
+$response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
     -InFile $testAppFile.FullName -ContentType "application/octet-stream" `
-    -UseBasicParsing
+    -UseBasicParsing -AllowUnencryptedAuthentication
 
 if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
     Write-Host "ERROR: Failed to publish test app. Status: $($response.StatusCode)" -ForegroundColor Red
