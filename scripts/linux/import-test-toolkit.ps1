@@ -60,9 +60,10 @@ if (-not (Test-Path `$modulePath)) {
     Write-Error "NAV Management DLL not found at: `$modulePath"
     Write-Host "Searching for alternative paths..."
     
-    # Try to find any BC version directory
+    # Try to find any BC version directory (using type check for cross-version compatibility)
     try {
-        `$altPath = Get-ChildItem "C:\Program Files\Microsoft Dynamics NAV" -Directory -ErrorAction Stop | 
+        `$altPath = Get-ChildItem "C:\Program Files\Microsoft Dynamics NAV" -ErrorAction Stop | 
+            Where-Object { `$_ -is [System.IO.DirectoryInfo] } |
             Sort-Object Name -Descending | 
             Select-Object -First 1 | 
             ForEach-Object { Join-Path `$_.FullName "Service\Microsoft.Dynamics.Nav.Management.dll" }
