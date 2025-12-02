@@ -30,13 +30,15 @@ Push-Location bcdev-temp
 
 try {
     # First, detect BC version from inside the container
+    # Note: detect-bc-version.sh is provided by the BCDevOnLinux container setup
     Write-Host "Detecting BC version from container..." -ForegroundColor Yellow
     $bcVersionOutput = docker compose exec bc bash -c '/home/scripts/bc/detect-bc-version.sh 2>&1'
     
     # Extract just the version number (e.g., "260")
     $bcVersion = ($bcVersionOutput -split "`n" | Select-Object -Last 1).Trim()
     
-    if ([string]::IsNullOrWhiteSpace($bcVersion) -or $bcVersion -notmatch '^\d+$') {
+    # Validate version format - must be 2-3 digits (e.g., "260", "270")
+    if ([string]::IsNullOrWhiteSpace($bcVersion) -or $bcVersion -notmatch '^\d{2,3}$') {
         Write-Host "Failed to detect BC version. Output: $bcVersionOutput" -ForegroundColor Red
         Write-Host "Using default version 260" -ForegroundColor Yellow
         $bcVersion = "260"
@@ -57,15 +59,24 @@ Write-Host "Loading NAV Management module from: `$modulePath"
 if (-not (Test-Path `$modulePath)) {
     Write-Error "NAV Management DLL not found at: `$modulePath"
     Write-Host "Searching for alternative paths..."
-    `$altPath = Get-ChildItem "C:\Program Files\Microsoft Dynamics NAV" -Directory | 
-        Sort-Object Name -Descending | 
-        Select-Object -First 1 | 
-        ForEach-Object { Join-Path `$_.FullName "Service\Microsoft.Dynamics.Nav.Management.dll" }
-    if (`$altPath -and (Test-Path `$altPath)) {
-        Write-Host "Found alternative path: `$altPath"
-        `$modulePath = `$altPath
-    } else {
-        Write-Error "Could not find NAV Management DLL in any version directory"
+    
+    # Try to find any BC version directory
+    try {
+        `$altPath = Get-ChildItem "C:\Program Files\Microsoft Dynamics NAV" -Directory -ErrorAction Stop | 
+            Sort-Object Name -Descending | 
+            Select-Object -First 1 | 
+            ForEach-Object { Join-Path `$_.FullName "Service\Microsoft.Dynamics.Nav.Management.dll" }
+        
+        if (`$altPath -and (Test-Path `$altPath)) {
+            Write-Host "Found alternative path: `$altPath"
+            `$modulePath = `$altPath
+        } else {
+            Write-Error "Could not find NAV Management DLL in any version directory"
+            exit 1
+        }
+    }
+    catch {
+        Write-Error "Could not access Microsoft Dynamics NAV directory: `$_"
         exit 1
     }
 }
