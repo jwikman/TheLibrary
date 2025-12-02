@@ -55,7 +55,6 @@ jobs:
         run: |
           pwsh ./scripts/linux/start-bc-container.ps1 \
             -MaxWaitSeconds 1200
-          pwsh ./scripts/linux/start-bc-container.ps1 -MaxWaitSeconds 1200
 
       - name: Create dependencies directory
         run: |
@@ -93,14 +92,17 @@ jobs:
           pwsh ./scripts/linux/compile-al-apps.ps1 \
             -ProjectPath "./TestApp"
 
+      # - name: Publish Apps to Container
+      #   env:
+      #     BC_PASSWORD: ${{ env.BC_PASSWORD }}
+      #   run: |
+      #     pwsh ./scripts/linux/publish-apps-to-container.ps1 \
+      #       -BaseUrl "http://localhost:7049/BC" \
+      #       -Username "$BC_USERNAME"
+
       - name: Publish Apps to Container
-        env:
-          BC_PASSWORD: ${{ env.BC_PASSWORD }}
         run: |
-          pwsh ./scripts/linux/publish-apps-to-container.ps1 \
-            -BaseUrl "http://localhost:7049/BC" \
-            -Username "$BC_USERNAME"
-          pwsh ./scripts/linux/publish-apps-to-container.ps1 -BaseUrl "http://localhost:7049/BC" -Username "$BC_USERNAME"
+          ./scripts/linux/publish-apps-to-container.sh "http://localhost:7049" "$BC_USERNAME" "$BC_PASSWORD"
 
       - name: Run AL Tests in Container via OData
         run: |
