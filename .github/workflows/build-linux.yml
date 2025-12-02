@@ -89,7 +89,10 @@ jobs:
         env:
           BC_PASSWORD: ${{ env.BC_PASSWORD }}
         run: |
-          pwsh ./scripts/linux/publish-apps-to-container.ps1 -BaseUrl "http://localhost:7049" -Username "$BC_USERNAME"
+          pwsh ./scripts/linux/publish-apps-to-container.ps1 \
+            -BaseUrl "http://localhost:7049/BC" \
+            -Username "$BC_USERNAME"
+          pwsh ./scripts/linux/publish-apps-to-container.ps1 -BaseUrl "http://localhost:7049/BC" -Username "$BC_USERNAME"
 
       - name: Run AL Tests in Container via OData
         run: |

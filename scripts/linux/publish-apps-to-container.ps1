@@ -7,7 +7,7 @@
     Publishes the main app and test app to a Business Central container using the Development API
 
 .PARAMETER BaseUrl
-    Base URL of the BC container (default: http://localhost:7049)
+    Base URL of the BC container (default: http://localhost:7049/BC)
 
 .PARAMETER Username
     Username for authentication (required)
@@ -18,7 +18,7 @@
 
 .EXAMPLE
     $env:BC_PASSWORD = "Admin123!"
-    ./publish-apps-to-container.ps1 -BaseUrl "http://localhost:7049" -Username "admin"
+    ./publish-apps-to-container.ps1 -BaseUrl "http://localhost:7049/BC" -Username "admin"
 
 .NOTES
     Requires environment variable:
@@ -26,7 +26,7 @@
 #>
 
 param(
-    [string]$BaseUrl = "http://localhost:7049",
+    [string]$BaseUrl = "http://localhost:7049/BC",
 
     [Parameter(Mandatory = $true)]
     [string]$Username
@@ -63,7 +63,7 @@ if (-not $appFile) {
 Write-Host "Publishing app file: $($appFile.FullName)" -ForegroundColor Gray
 
 # Publish extension to BC container using API
-$uri = "$BaseUrl/BC/dev/apps?tenant=default&SchemaUpdateMode=synchronize&DependencyPublishingOption=default"
+$uri = "$BaseUrl/dev/apps?tenant=default&SchemaUpdateMode=synchronize&DependencyPublishingOption=default"
 $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
     -InFile $appFile.FullName -ContentType "application/octet-stream" `
     -UseBasicParsing -AllowUnencryptedAuthentication
