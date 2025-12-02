@@ -16,16 +16,15 @@
     BC Artifact URL to use for the container (mandatory)
 
 .EXAMPLE
-    ./setup-bc-container.ps1
-    ./setup-bc-container.ps1 -BCDevRepo "https://github.com/StefanMaron/BCDevOnLinux.git" -BCDevBranch "main"
-    ./setup-bc-container.ps1 -BCArtifactUrl "https://bcartifacts.azureedge.net/sandbox/27.1/w1"
+    ./setup-bc-container.ps1 -BCDevRepo "https://github.com/StefanMaron/BCDevOnLinux.git" -BCDevBranch "main" -BCArtifactUrl "https://bcartifacts.azureedge.net/sandbox/27.1/w1"
+    ./setup-bc-container.ps1 -BCDevRepo "https://github.com/jwikman/BCDevOnLinux.git" -BCDevBranch "main" -BCArtifactUrl "https://bcartifacts.azureedge.net/sandbox/27.1.41698.42876/w1"
 #>
 
 param(
-    [Parameter(Mandatory = $false)]
-    [string]$BCDevRepo = "https://github.com/jwikman/BCDevOnLinux.git",
-    [Parameter(Mandatory = $false)]
-    [string]$BCDevBranch = "main",
+    [Parameter(Mandatory = $true)]
+    [string]$BCDevRepo,
+    [Parameter(Mandatory = $true)]
+    [string]$BCDevBranch,
     [Parameter(Mandatory = $true)]
     [string]$BCArtifactUrl
 )

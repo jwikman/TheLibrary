@@ -11,7 +11,7 @@ on:
 env:
   AL_VERSION: "17.0.28.6483-beta"
   BCDEV_REPO: "https://github.com/jwikman/BCDevOnLinux.git"
-  BCDEV_BRANCH: "main"
+  BCDEV_BRANCH: "CustomArtifactUrl"
   BC_USERNAME: "admin"
   BC_PASSWORD: "Admin123!"
   SA_PASSWORD: "P@ssw0rd123!"
