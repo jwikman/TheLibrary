@@ -42,6 +42,19 @@ docker compose version
 Write-Host "Cloning BCDevOnLinux repository, branch '$BCDevBranch'..." -ForegroundColor Yellow
 git clone --branch $BCDevBranch --depth 1 $BCDevRepo bcdev-temp
 
+# Output last commit information
+Write-Host "Repository cloned successfully. Last commit details:" -ForegroundColor Green
+Push-Location bcdev-temp
+try {
+    $commitHash = git rev-parse HEAD
+    $commitMessage = git log -1 --pretty=format:"%s"
+    Write-Host "  Hash: $commitHash" -ForegroundColor Gray
+    Write-Host "  Message: $commitMessage" -ForegroundColor Gray
+}
+finally {
+    Pop-Location
+}
+
 # Pull BC Wine Base Image
 Write-Host "Pulling BC Wine base image..." -ForegroundColor Yellow
 docker pull stefanmaronbc/bc-wine-base:latest
