@@ -48,11 +48,14 @@ try {
     Write-Host ""
 
     # Create PowerShell script to run inside container
-    # Note: Using Wine path format (C:\Program Files\...) for Import-Module
+    # Note: PowerShell Core runs directly in Linux, so we need Linux paths to the Wine prefix
+    # Wine maps /root/.local/share/wineprefixes/bc1/drive_c to C:\ when running under Wine,
+    # but pwsh running directly needs the Linux path
     $containerScript = @"
 # Import BC Management module
 `$bcVersion = '$bcVersion'
-`$modulePath = "C:\Program Files\Microsoft Dynamics NAV\`$bcVersion\Service\Microsoft.Dynamics.Nav.Management.dll"
+`$winePrefix = "`$env:HOME/.local/share/wineprefixes/bc1"
+`$modulePath = "`$winePrefix/drive_c/Program Files/Microsoft Dynamics NAV/`$bcVersion/Service/Microsoft.Dynamics.Nav.Management.dll"
 Write-Host "Loading NAV Management module from: `$modulePath"
 
 # Test if the module path exists
@@ -60,12 +63,13 @@ if (-not (Test-Path `$modulePath)) {
     Write-Error "NAV Management DLL not found at: `$modulePath"
     Write-Host "Searching for alternative paths..."
     
-    # Try to find any BC version directory (using Attributes for compatibility)
+    # Try to find any BC version directory
     try {
-        `$altPath = Get-ChildItem "C:\Program Files\Microsoft Dynamics NAV" -Attributes Directory -ErrorAction Stop | 
+        `$navDir = "`$winePrefix/drive_c/Program Files/Microsoft Dynamics NAV"
+        `$altPath = Get-ChildItem `$navDir -Attributes Directory -ErrorAction Stop | 
             Sort-Object Name -Descending | 
             Select-Object -First 1 | 
-            ForEach-Object { Join-Path `$_.FullName "Service\Microsoft.Dynamics.Nav.Management.dll" }
+            ForEach-Object { Join-Path `$_.FullName "Service/Microsoft.Dynamics.Nav.Management.dll" }
         
         if (`$altPath -and (Test-Path `$altPath)) {
             Write-Host "Found alternative path: `$altPath"
