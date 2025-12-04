@@ -59,6 +59,7 @@
 		"chat.promptFilesLocations": {
 			".github/prompts": true
 		},
+		"powershell.cwd": "TheLibrary",
 	},
 	"extensions": {
 		"recommendations": [

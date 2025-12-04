@@ -2,7 +2,7 @@
   "id": "2ef0bab6-32ad-443a-a354-5f12b2d80486",
   "name": "The Library Tester",
   "publisher": "Johannes Wikman",
-  "version": "1.0.0.0",
+  "version": "1.0.0.2",
   "brief": "",
   "description": "",
   "privacyStatement": "",
@@ -15,7 +15,7 @@
       "id": "741887eb-f67b-45e4-9920-c296b52179ce",
       "name": "The Library",
       "publisher": "Johannes Wikman",
-      "version": "1.0.0.0"
+      "version": "1.0.0.2"
     },
     {
       "id": "dd0be2ea-f733-4d65-bb34-a28f4624fb14",
