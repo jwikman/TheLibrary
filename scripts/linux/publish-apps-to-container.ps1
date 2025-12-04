@@ -60,13 +60,14 @@ if (-not $appFile) {
     exit 1
 }
 
-Write-Host "Publishing app file: $($appFile.FullName)" -ForegroundColor Gray
+Write-Host "Publishing app file: $($appFile.Name)" -ForegroundColor Gray
 
 # Publish extension to BC container using API
-# PowerShell 7+ supports -Form parameter which is equivalent to curl -F
+# Format matches VSCode publish request - field name should be the actual filename
 $uri = "$BaseUrl/dev/apps?tenant=default&SchemaUpdateMode=synchronize&DependencyPublishingOption=default"
+$fileName = $appFile.Name
 $form = @{
-    file = Get-Item -Path $appFile.FullName
+    $fileName = $appFile
 }
 
 $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
@@ -75,28 +76,51 @@ $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
 
 if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
     Write-Host "ERROR: Failed to publish main app. Status: $($response.StatusCode)" -ForegroundColor Red
+    Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
     exit 1
 }
 
-# Publish Test App
+Write-Host "✓ Main app published successfully" -ForegroundColor Green
+
+# Publish Test App (with dependencies)
 Write-Host "Publishing The Library Tester (test app) to BC container..." -ForegroundColor Yellow
 
-# Find the test app file (excluding .dep.app files)
+# Find the test app .app file (not .dep.app)
 $testAppFile = Get-ChildItem -Path "./TestApp" -Filter "*.app" -File -Depth 0 |
     Where-Object { $_.Name -notlike "*.dep.app" } |
     Select-Object -First 1
 
 if (-not $testAppFile) {
-    Write-Host "ERROR: No test app file found for publishing" -ForegroundColor Red
+    Write-Host "ERROR: No test app file found" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Publishing test app file: $($testAppFile.FullName)" -ForegroundColor Gray
+# Create .dep.app file with dependencies
+# Note: We publish a .dep.app instead of the .app file because the .dep.app format automatically
+# installs any dependencies that are already published but not yet installed in the environment.
+# This ensures all required apps are installed in the correct order.
+Write-Host "Creating .dep.app package with dependencies..." -ForegroundColor Gray
 
-# Publish extension to BC container using API
-# PowerShell 7+ supports -Form parameter which is equivalent to curl -F
+# Find the Create-DepApp.ps1 script
+$createDepAppScript = Join-Path $PSScriptRoot "./create-dep-app.ps1" -Resolve
+
+# Create .dep.app with main app as dependency
+$depAppPath = & $createDepAppScript -AppPath $testAppFile.FullName -DependencyPaths @($appFile.FullName)
+
+if (-not $depAppPath -or -not (Test-Path $depAppPath)) {
+    Write-Host "ERROR: Failed to create .dep.app file" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Created .dep.app: $depAppPath" -ForegroundColor Gray
+
+# Publish the .dep.app file
+$depAppFile = Get-Item $depAppPath
+Write-Host "Publishing test app file: $($depAppFile.Name)" -ForegroundColor Gray
+
+$fileName = $depAppFile.Name
 $form = @{
-    file = Get-Item -Path $testAppFile.FullName
+    $fileName = $depAppFile
 }
 
 $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
@@ -105,6 +129,7 @@ $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
 
 if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
     Write-Host "ERROR: Failed to publish test app. Status: $($response.StatusCode)" -ForegroundColor Red
+    Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
     exit 1
 }
 

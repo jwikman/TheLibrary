@@ -339,6 +339,7 @@ try {
 
     if ($result) {
         Write-Host "`n✓ Successfully created .dep.app package" -ForegroundColor Green
+        Write-Output $OutputPath
         exit 0
     }
     else {
