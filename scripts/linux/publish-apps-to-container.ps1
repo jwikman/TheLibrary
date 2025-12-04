@@ -75,26 +75,49 @@ $form = @{
 }
 
 Write-Host "  Sending request..." -ForegroundColor DarkGray
-try {
-    $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
-        -Form $form `
-        -UseBasicParsing -AllowUnencryptedAuthentication `
-        -TimeoutSec 300 -Verbose
-    Write-Host "  Response status: $($response.StatusCode)" -ForegroundColor DarkGray
+$maxRetries = 3
+$retryCount = 0
+$success = $false
 
-    if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
-        Write-Host "ERROR: Failed to publish main app. Status: $($response.StatusCode)" -ForegroundColor Red
-        Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
-        exit 1
+while (-not $success -and $retryCount -lt $maxRetries) {
+    try {
+        if ($retryCount -gt 0) {
+            Write-Host "  Retry attempt $retryCount of $maxRetries..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 2
+        }
+
+        $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
+            -Form $form `
+            -UseBasicParsing -AllowUnencryptedAuthentication `
+            -TimeoutSec 300 -Verbose
+        Write-Host "  Response status: $($response.StatusCode)" -ForegroundColor DarkGray
+
+        if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
+            Write-Host "ERROR: Failed to publish main app. Status: $($response.StatusCode)" -ForegroundColor Red
+            Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
+            exit 1
+        }
+
+        $success = $true
     }
-}
-catch {
-    Write-Host "  ERROR during request: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "  Exception type: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
-    if ($_.Exception.Response) {
-        Write-Host "  Response status: $($_.Exception.Response.StatusCode)" -ForegroundColor DarkGray
+    catch {
+        $retryCount++
+        Write-Host "  ERROR during request (attempt $retryCount): $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  Exception type: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
+
+        if ($_.Exception.InnerException) {
+            Write-Host "  Inner exception: $($_.Exception.InnerException.Message)" -ForegroundColor DarkGray
+        }
+
+        if ($_.Exception.Response) {
+            Write-Host "  Response status: $($_.Exception.Response.StatusCode)" -ForegroundColor DarkGray
+        }
+
+        if ($retryCount -ge $maxRetries) {
+            Write-Host "  All retry attempts failed" -ForegroundColor Red
+            throw
+        }
     }
-    throw
 }
 
 Write-Host "✓ Main app published successfully" -ForegroundColor Green
@@ -144,26 +167,49 @@ $form = @{
 }
 
 Write-Host "  Sending request..." -ForegroundColor DarkGray
-try {
-    $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
-        -Form $form `
-        -UseBasicParsing -AllowUnencryptedAuthentication `
-        -TimeoutSec 300 -Verbose
-    Write-Host "  Response status: $($response.StatusCode)" -ForegroundColor DarkGray
+$maxRetries = 3
+$retryCount = 0
+$success = $false
 
-    if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
-        Write-Host "ERROR: Failed to publish test app. Status: $($response.StatusCode)" -ForegroundColor Red
-        Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
-        exit 1
+while (-not $success -and $retryCount -lt $maxRetries) {
+    try {
+        if ($retryCount -gt 0) {
+            Write-Host "  Retry attempt $retryCount of $maxRetries..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 2
+        }
+
+        $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
+            -Form $form `
+            -UseBasicParsing -AllowUnencryptedAuthentication `
+            -TimeoutSec 300 -Verbose
+        Write-Host "  Response status: $($response.StatusCode)" -ForegroundColor DarkGray
+
+        if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
+            Write-Host "ERROR: Failed to publish test app. Status: $($response.StatusCode)" -ForegroundColor Red
+            Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
+            exit 1
+        }
+
+        $success = $true
     }
-}
-catch {
-    Write-Host "  ERROR during request: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "  Exception type: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
-    if ($_.Exception.Response) {
-        Write-Host "  Response status: $($_.Exception.Response.StatusCode)" -ForegroundColor DarkGray
+    catch {
+        $retryCount++
+        Write-Host "  ERROR during request (attempt $retryCount): $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  Exception type: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
+
+        if ($_.Exception.InnerException) {
+            Write-Host "  Inner exception: $($_.Exception.InnerException.Message)" -ForegroundColor DarkGray
+        }
+
+        if ($_.Exception.Response) {
+            Write-Host "  Response status: $($_.Exception.Response.StatusCode)" -ForegroundColor DarkGray
+        }
+
+        if ($retryCount -ge $maxRetries) {
+            Write-Host "  All retry attempts failed" -ForegroundColor Red
+            throw
+        }
     }
-    throw
 }
 
 Write-Host "✓ All apps published successfully" -ForegroundColor Green
