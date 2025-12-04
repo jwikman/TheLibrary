@@ -61,23 +61,40 @@ if (-not $appFile) {
 }
 
 Write-Host "Publishing app file: $($appFile.Name)" -ForegroundColor Gray
+Write-Host "  File path: $($appFile.FullName)" -ForegroundColor DarkGray
+Write-Host "  File size: $([math]::Round($appFile.Length / 1KB, 2)) KB" -ForegroundColor DarkGray
 
 # Publish extension to BC container using API
 # Format matches VSCode publish request - field name should be the actual filename
 $uri = "$BaseUrl/dev/apps?tenant=default&SchemaUpdateMode=synchronize&DependencyPublishingOption=default"
+Write-Host "  URI: $uri" -ForegroundColor DarkGray
 $fileName = $appFile.Name
+Write-Host "  Form field name: $fileName" -ForegroundColor DarkGray
 $form = @{
     $fileName = $appFile
 }
 
-$response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
-    -Form $form `
-    -UseBasicParsing -AllowUnencryptedAuthentication
+Write-Host "  Sending request..." -ForegroundColor DarkGray
+try {
+    $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
+        -Form $form `
+        -UseBasicParsing -AllowUnencryptedAuthentication `
+        -TimeoutSec 300 -Verbose
+    Write-Host "  Response status: $($response.StatusCode)" -ForegroundColor DarkGray
 
-if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
-    Write-Host "ERROR: Failed to publish main app. Status: $($response.StatusCode)" -ForegroundColor Red
-    Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
-    exit 1
+    if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
+        Write-Host "ERROR: Failed to publish main app. Status: $($response.StatusCode)" -ForegroundColor Red
+        Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
+        exit 1
+    }
+}
+catch {
+    Write-Host "  ERROR during request: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  Exception type: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
+    if ($_.Exception.Response) {
+        Write-Host "  Response status: $($_.Exception.Response.StatusCode)" -ForegroundColor DarkGray
+    }
+    throw
 }
 
 Write-Host "✓ Main app published successfully" -ForegroundColor Green
@@ -117,20 +134,36 @@ Write-Host "Created .dep.app: $depAppPath" -ForegroundColor Gray
 # Publish the .dep.app file
 $depAppFile = Get-Item $depAppPath
 Write-Host "Publishing test app file: $($depAppFile.Name)" -ForegroundColor Gray
+Write-Host "  File path: $($depAppFile.FullName)" -ForegroundColor DarkGray
+Write-Host "  File size: $([math]::Round($depAppFile.Length / 1KB, 2)) KB" -ForegroundColor DarkGray
 
 $fileName = $depAppFile.Name
+Write-Host "  Form field name: $fileName" -ForegroundColor DarkGray
 $form = @{
     $fileName = $depAppFile
 }
 
-$response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
-    -Form $form `
-    -UseBasicParsing -AllowUnencryptedAuthentication
+Write-Host "  Sending request..." -ForegroundColor DarkGray
+try {
+    $response = Invoke-WebRequest -Uri $uri -Method Post -Headers $Headers `
+        -Form $form `
+        -UseBasicParsing -AllowUnencryptedAuthentication `
+        -TimeoutSec 300 -Verbose
+    Write-Host "  Response status: $($response.StatusCode)" -ForegroundColor DarkGray
 
-if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
-    Write-Host "ERROR: Failed to publish test app. Status: $($response.StatusCode)" -ForegroundColor Red
-    Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
-    exit 1
+    if ($response.StatusCode -ne 200 -and $response.StatusCode -ne 204) {
+        Write-Host "ERROR: Failed to publish test app. Status: $($response.StatusCode)" -ForegroundColor Red
+        Write-Host "Response: $($response.Content)" -ForegroundColor Yellow
+        exit 1
+    }
+}
+catch {
+    Write-Host "  ERROR during request: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  Exception type: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
+    if ($_.Exception.Response) {
+        Write-Host "  Response status: $($_.Exception.Response.StatusCode)" -ForegroundColor DarkGray
+    }
+    throw
 }
 
 Write-Host "✓ All apps published successfully" -ForegroundColor Green
