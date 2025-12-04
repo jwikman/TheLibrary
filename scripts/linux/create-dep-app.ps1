@@ -150,7 +150,9 @@ function New-DepAppPackage {
     }
 
     # Create temporary directory for package contents
-    $tempDir = Join-Path $env:TEMP "dep_package_$(New-Guid)"
+    # Use cross-platform temp directory (TEMP on Windows, TMPDIR or /tmp on Linux)
+    $tempBase = if ($env:TEMP) { $env:TEMP } elseif ($env:TMPDIR) { $env:TMPDIR } else { "/tmp" }
+    $tempDir = Join-Path $tempBase "dep_package_$(New-Guid)"
     New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
     if (-not (Test-Path $tempDir)) {
@@ -256,7 +258,7 @@ function New-DepAppPackage {
 
         # Create temporary ZIP file using .NET ZipFile for cross-platform compatibility
         # Use manual entry creation to control compression level and file ordering
-        $tempZipPath = Join-Path $env:TEMP "temp_package_$(New-Guid).zip"
+        $tempZipPath = Join-Path $tempBase "temp_package_$(New-Guid).zip"
         if (Test-Path $tempZipPath) {
             Remove-Item $tempZipPath -Force
         }
