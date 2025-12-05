@@ -1,0 +1,16 @@
+{
+  "containerName": "bcserver",
+  "userName": "admin",
+  "securePassword": "",
+  "companyName": "",
+  "testSuiteName": "DEFAULT",
+  "vmUserName": "",
+  "vmSecurePassword": "",
+  "remoteContainerName": "",
+  "testRunnerServiceUrl": "",
+  "codeCoveragePath": "",
+  "culture": "en-US",
+  "extensionId": "",
+  "testCodeunitRange": "",
+  "disabledTests": []
+}
