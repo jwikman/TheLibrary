@@ -12,10 +12,6 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
 
-defaults:
-  run:
-    shell: pwsh
-
 jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
@@ -35,6 +31,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup .NET 8.0 and AL Tools
+        shell: pwsh
         env:
           AL_VERSION: ${{ vars.AL_VERSION }}
         run: |
@@ -42,6 +39,7 @@ jobs:
             -ALVersion "$env:AL_VERSION"
 
       - name: Get Weekly BC Artifact URL
+        shell: pwsh
         id: get-bc-artifact
         run: |
           Install-Module -Name BcContainerHelper -Force -AllowClobber -Scope CurrentUser
@@ -50,6 +48,7 @@ jobs:
           "artifact-url=$artifactUrl" >> $env:GITHUB_OUTPUT
 
       - name: Setup BC Container
+        shell: pwsh
         env:
           SA_PASSWORD: ${{ secrets.SA_PASSWORD }}
           BC_USERNAME: ${{ vars.BC_USERNAME }}
@@ -63,11 +62,13 @@ jobs:
             -BCArtifactUrl "${{ steps.get-bc-artifact.outputs.artifact-url }}"
 
       - name: Start BC Container
+        shell: pwsh
         run: |
           ./.github/scripts/start-bc-container.ps1 `
             -MaxWaitSeconds 1200
 
       - name: Create dependencies directory
+        shell: pwsh
         run: |
           New-Item `
             -ItemType Directory `
@@ -75,6 +76,7 @@ jobs:
             -Path .alpackages
 
       - name: Download BC Symbol Packages for Main App
+        shell: pwsh
         env:
           BC_PASSWORD: ${{ secrets.BC_PASSWORD }}
           BC_USERNAME: ${{ vars.BC_USERNAME }}
@@ -87,11 +89,13 @@ jobs:
             -SymbolsFolder ".alpackages"
 
       - name: Compile Main App
+        shell: pwsh
         run: |
           ./.github/scripts/compile-al-apps.ps1 `
             -ProjectPath "./App"
 
       - name: Download BC Symbol Packages for Test App
+        shell: pwsh
         env:
           BC_PASSWORD: ${{ secrets.BC_PASSWORD }}
           BC_USERNAME: ${{ vars.BC_USERNAME }}
@@ -104,11 +108,13 @@ jobs:
             -SymbolsFolder ".alpackages"
 
       - name: Compile Test App
+        shell: pwsh
         run: |
           ./.github/scripts/compile-al-apps.ps1 `
             -ProjectPath "./TestApp"
 
       - name: Publish Apps to Container
+        shell: pwsh
         env:
           BC_PASSWORD: ${{ secrets.BC_PASSWORD }}
           BC_USERNAME: ${{ vars.BC_USERNAME }}
@@ -117,6 +123,7 @@ jobs:
             -BaseUrl "http://localhost:7049/BC" `
             -Username "$env:BC_USERNAME"
       - name: Run AL Tests in Container via OData
+        shell: pwsh
         env:
           BC_PASSWORD: ${{ secrets.BC_PASSWORD }}
           BC_USERNAME: ${{ vars.BC_USERNAME }}
@@ -131,6 +138,7 @@ jobs:
             -MaxWaitSeconds 300
 
       - name: Build Summary
+        shell: pwsh
         run: |
           Write-Host "=== BUILD SUMMARY ==="
           Write-Host "Build completed at: $(Get-Date -Format o)"
