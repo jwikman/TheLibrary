@@ -5,21 +5,20 @@
 
 .DESCRIPTION
     This script executes AL test codeunits via the OData API exposed by the
-    Codeunit Run Requests API page. It provides a stateful execution pattern
-    with status tracking for Business Central tests.
+    Codeunit Run Requests API page (page 50002). It provides a stateful
+    execution pattern with status tracking.
 
 .PARAMETER BaseUrl
-    The base URL of the Business Central instance (e.g., "http://localhost:7048/BC")
-    Note: Use port 7048 for OData, not 7049 (which is for SOAP/web services)
+    The base URL of the Business Central instance (e.g., "http://bcserver:7048/BC")
 
 .PARAMETER Tenant
     The tenant name (default: "default")
 
 .PARAMETER Username
-    Username for authentication (required)
+    Username for authentication (can also be set via BC_USERNAME environment variable)
 
 .PARAMETER Password
-    Password for authentication (required)
+    Password for authentication as SecureString (can also be set via BC_PASSWORD environment variable)
 
 .PARAMETER CodeunitId
     The ID of the test codeunit to execute (default: 70454 - "LIB Test Suite")
@@ -28,30 +27,30 @@
     Maximum time to wait for test execution to complete (default: 300 seconds)
 
 .EXAMPLE
-    ./run-tests-odata.ps1 -BaseUrl "http://localhost:7048/BC" -CodeunitId 70454
+    ./run-tests-odata.ps1 -BaseUrl "http://localhost:7048/BC" -CodeunitId 50001
 
 .NOTES
-    This script is adapted from the BCDevOnLinux project for use with The Library app.
-    It uses the AL Test Tool framework to execute all tests in the test suite.
+    API Endpoint: /api/custom/automation/v1.0/codeunitRunRequests
+    Uses the state-tracked execution pattern with status monitoring.
 #>
 
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$BaseUrl = "http://localhost:7048/BC",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [string]$Tenant = "default",
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$Username,
 
-    [Parameter(Mandatory = $true)]
-    [string]$Password,
+    [Parameter(Mandatory = $false)]
+    [SecureString]$Password,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [int]$CodeunitId = 70454,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [int]$MaxWaitSeconds = 300
 )
 
@@ -59,31 +58,50 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Get credentials from environment variables if not provided as parameters
+if (-not $Username -and $env:BC_USERNAME) {
+    $Username = $env:BC_USERNAME
+}
+if (-not $Password -and $env:BC_PASSWORD) {
+    $Password = ConvertTo-SecureString $env:BC_PASSWORD -AsPlainText -Force
+}
+
+# Validate required credentials
+if (-not $Username -or -not $Password) {
+    Write-Host "Error: Username and Password are required either as parameters or environment variables (BC_USERNAME, BC_PASSWORD)" -ForegroundColor Red
+    exit 1
+}
+
+# Convert SecureString password to plain text for Basic Auth
+$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
+$PlainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+[System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+
 # Build API endpoint
-$ApiPath = "/api/v2.0"
+$ApiPath = "/api/custom/automation/v1.0/codeunitRunRequests"
 $ApiUrl = "$BaseUrl$ApiPath"
 
-Write-Host "=== AL Test Execution via Standard BC API ===" -ForegroundColor Cyan
+Write-Host "=== AL Test Execution via OData API ===" -ForegroundColor Cyan
 Write-Host "Base URL: $BaseUrl" -ForegroundColor Gray
 Write-Host "Tenant: $Tenant" -ForegroundColor Gray
 Write-Host "Codeunit ID: $CodeunitId" -ForegroundColor Gray
 Write-Host ""
 
-# Create credentials
-$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${Username}:${Password}"))
+# Create credentials from parameters
+$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${Username}:${PlainPassword}"))
 
 # Headers for API requests
 $Headers = @{
-    "Content-Type" = "application/json"
-    "Accept" = "application/json"
+    "Content-Type"  = "application/json"
+    "Accept"        = "application/json"
     "Authorization" = "Basic $base64AuthInfo"
 }
 
 try {
     # Pre-flight check: Test basic API connectivity and get company ID
-    Write-Host "[1/4] Testing API connectivity and retrieving company..." -ForegroundColor Yellow
+    Write-Host "[0/5] Testing API connectivity and retrieving company..." -ForegroundColor Yellow
     try {
-        $testUrl = "$BaseUrl/api/v2.0/companies"
+        $testUrl = "$BaseUrl/api/v2.0/companies?tenant=$Tenant"
         $testResponse = Invoke-RestMethod -Uri $testUrl `
             -Method Get `
             -Headers $Headers `
@@ -97,64 +115,195 @@ try {
             $CompanyName = $testResponse.value[0].name
             Write-Host "✓ API is accessible" -ForegroundColor Green
             Write-Host "  Using company: $CompanyName ($CompanyId)" -ForegroundColor Gray
-        } else {
+        }
+        else {
             Write-Host "✗ No companies found in BC" -ForegroundColor Red
             exit 1
         }
-    } catch {
+    }
+    catch {
         Write-Host "✗ Failed to connect to API: $($_.Exception.Message)" -ForegroundColor Red
         exit 1
     }
 
+    # Update API URL to include company
+    $ApiUrl = "$BaseUrl/api/custom/automation/v1.0/companies($CompanyId)/codeunitRunRequests?tenant=$Tenant"
     Write-Host ""
 
-    Write-Host "[2/4] Triggering test codeunit execution..." -ForegroundColor Yellow
+    Write-Host "[1/4] Creating execution request..." -ForegroundColor Yellow
 
-    # For AL Test Tool test suites, we can't use a simple run - we need to trigger it differently
-    # The test suite codeunit (70454) will auto-populate tests when AL Test Tool page opens
-    # We'll simulate this by calling the codeunit directly
+    # Step 1: Create a new Codeunit Run Request
+    Write-Host "  Creating request for Codeunit ID: $CodeunitId" -ForegroundColor Gray
+    $RequestBody = @{
+        codeunitId = $CodeunitId
+    } | ConvertTo-Json
 
-    Write-Host "  Executing Test Suite Codeunit ID: $CodeunitId" -ForegroundColor Gray
+    try {
+        $CreateResponse = Invoke-RestMethod -Uri "$ApiUrl" `
+            -Method Post `
+            -Headers $Headers `
+            -Body $RequestBody `
+            -AllowUnencryptedAuthentication `
+            -SkipHttpErrorCheck `
+            -TimeoutSec 30
 
-    # The test suite codeunit will auto-populate tests when AL Test Tool page opens
-    # We're triggering it via the AL Test Tool framework
+        if (-not $CreateResponse.id) {
+            Write-Host "✗ Failed to create execution request - no ID returned" -ForegroundColor Red
+            Write-Host "  Response: $($CreateResponse | ConvertTo-Json -Depth 3)" -ForegroundColor Yellow
+            exit 1
+        }
 
-    Write-Host "✓ Test execution triggered via AL Test Tool framework" -ForegroundColor Green
-    Write-Host "  Note: The test suite will auto-populate when accessed" -ForegroundColor Gray
+        $RequestId = $CreateResponse.id
+        $RequestUrl = "$BaseUrl/api/custom/automation/v1.0/companies($CompanyId)/codeunitRunRequests($RequestId)?tenant=$Tenant"
+
+        Write-Host "✓ Request created with ID: $RequestId" -ForegroundColor Green
+        Write-Host "  Status: $($CreateResponse.status)" -ForegroundColor Gray
+    }
+    catch {
+        Write-Host "✗ Failed to create execution request" -ForegroundColor Red
+        Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
+        throw
+    }
     Write-Host ""
 
-    Write-Host "[3/4] Monitoring test execution..." -ForegroundColor Yellow
+    Write-Host "[2/4] Executing codeunit..." -ForegroundColor Yellow
 
-    # Since we can't directly monitor AL Test Tool execution via standard API,
-    # we'll wait a bit and then check for results
-    # In a real scenario, you'd query the AL Test Suite table
+    # Step 2: Execute the codeunit via the runCodeunit action
+    $ActionUrl = "$BaseUrl/api/custom/automation/v1.0/companies($CompanyId)/codeunitRunRequests($RequestId)/Microsoft.NAV.runCodeunit?tenant=$Tenant"
 
-    $WaitSeconds = 10  # Give tests time to run
+    $ExecuteResponse = Invoke-RestMethod -Uri $ActionUrl `
+        -Method Post `
+        -Headers $Headers `
+        -AllowUnencryptedAuthentication `
+        -SkipHttpErrorCheck `
+        -TimeoutSec 60
 
-    Write-Host "  Waiting $WaitSeconds seconds for tests to complete..." -ForegroundColor Gray
-    Start-Sleep -Seconds $WaitSeconds
-
-    Write-Host ""
-    Write-Host "[4/4] Test Execution Results:" -ForegroundColor Yellow
-
-    # Since we're using the standard AL Test Tool framework, we assume success
-    # In a production scenario, you would:
-    # 1. Query the AL Test Suite table for test results
-    # 2. Check individual test method statuses
-    # 3. Parse any error messages
-
-    Write-Host "  Status: Completed" -ForegroundColor Green
-    Write-Host "  Test Suite: LIB Test Suite (Codeunit $CodeunitId)" -ForegroundColor Gray
+    Write-Host "✓ Execution triggered" -ForegroundColor Green
     Write-Host ""
 
-    Write-Host "Note: Test results should be verified through the AL Test Tool UI or by querying the AL Test Suite table" -ForegroundColor Yellow
-    Write-Host "      This script confirms that the test suite was triggered successfully" -ForegroundColor Yellow
+    Write-Host "[3/4] Monitoring execution status..." -ForegroundColor Yellow
+
+    # Step 3: Poll for completion
+    $StartTime = Get-Date
+    $Completed = $false
+    $Status = "Running"
+    $LastResult = ""
+    $PollCount = 0
+
+    while (-not $Completed) {
+        $PollCount++
+        $ElapsedSeconds = ((Get-Date) - $StartTime).TotalSeconds
+
+        if ($ElapsedSeconds -gt $MaxWaitSeconds) {
+            Write-Host "✗ Timeout: Execution did not complete within $MaxWaitSeconds seconds" -ForegroundColor Red
+            exit 1
+        }
+
+        # Get current status
+        $StatusResponse = Invoke-RestMethod -Uri "$RequestUrl" `
+            -Method Get `
+            -Headers $Headers `
+            -AllowUnencryptedAuthentication `
+            -SkipHttpErrorCheck `
+            -TimeoutSec 30
+
+        $Status = $StatusResponse.Status
+        $LastResult = $StatusResponse.LastResult
+        $LastExecutionUTC = $StatusResponse.LastExecutionUTC
+
+        Write-Host "  Poll #$PollCount - Status: $Status (${ElapsedSeconds}s elapsed)" -ForegroundColor Gray
+
+        if ($Status -eq "Finished" -or $Status -eq "Error") {
+            $Completed = $true
+        }
+        else {
+            # Wait 2 seconds before next poll
+            Start-Sleep -Seconds 2
+        }
+    }
+
+    Write-Host ""
+    Write-Host "[4/4] Execution Results:" -ForegroundColor Yellow
+    Write-Host "  Status: $Status" -ForegroundColor $(if ($Status -eq "Finished") { "Green" } else { "Red" })
+    Write-Host "  Result: $LastResult" -ForegroundColor Gray
+    Write-Host "  Execution Time (UTC): $LastExecutionUTC" -ForegroundColor Gray
+    Write-Host "  Total Wait Time: $([Math]::Round($ElapsedSeconds, 2)) seconds" -ForegroundColor Gray
     Write-Host ""
 
-    Write-Host "=== TEST EXECUTION SUCCESSFUL ===" -ForegroundColor Green
-    exit 0
+    # Step 5: Check Log Table via OData
+    Write-Host "[5/5] Retrieving execution logs..." -ForegroundColor Yellow
 
-} catch {
+    try {
+        # Access the Log Entries API (no filters, just get all entries)
+        $LogApiUrl = "$BaseUrl/api/custom/automation/v1.0/companies($CompanyId)/logEntries?tenant=$Tenant"
+
+        $LogResponse = Invoke-RestMethod -Uri $LogApiUrl `
+            -Method Get `
+            -Headers $Headers `
+            -AllowUnencryptedAuthentication `
+            -SkipHttpErrorCheck `
+            -TimeoutSec 30
+
+        if ($LogResponse.value -and $LogResponse.value.Count -gt 0) {
+            Write-Host "✓ Found $($LogResponse.value.Count) log entries:" -ForegroundColor Green
+            $LogResponse.value | ForEach-Object {
+                # Handle both types of logs: manual logs (with Message) and test runner logs (with test details)
+                if ($_.message -and $_.message -ne "") {
+                    # Manual log entry
+                    Write-Host "  [Entry $($_.entryNo)] $($_.message)" -ForegroundColor Cyan
+                    if ($_.computerName -and $_.computerName -ne "") {
+                        Write-Host "    Computer: $($_.computerName)" -ForegroundColor Gray
+                    }
+                }
+                elseif ($_.codeunitName -and $_.codeunitName -ne "") {
+                    # Test runner log entry
+                    $statusIcon = if ($_.success) { "✓" } else { "✗" }
+                    $statusColor = if ($_.success) { "Green" } else { "Red" }
+                    Write-Host "  $statusIcon [Entry $($_.entryNo)] Test: $($_.codeunitName)::$($_.functionName)" -ForegroundColor $statusColor
+                    Write-Host "    Codeunit ID: $($_.codeunitId)" -ForegroundColor Gray
+
+                    # Show error details for failed tests
+                    if (-not $_.success -and $_.errorMessage -and $_.errorMessage -ne "") {
+                        Write-Host "    Error: $($_.errorMessage)" -ForegroundColor Red
+                        if ($_.callStack -and $_.callStack -ne "") {
+                            Write-Host "    Call Stack:" -ForegroundColor Gray
+                            # Display first 3 lines of call stack to keep output manageable
+                            $stackLines = $_.callStack -split "`n" | Select-Object -First 3
+                            foreach ($line in $stackLines) {
+                                Write-Host "      $line" -ForegroundColor DarkGray
+                            }
+                        }
+                    }
+                }
+                else {
+                    # Fallback for incomplete log entries
+                    Write-Host "  [Entry $($_.entryNo)] (no details logged)" -ForegroundColor DarkGray
+                }
+            }
+        }
+        else {
+            Write-Host "  No log entries found" -ForegroundColor Gray
+        }
+    }
+    catch {
+        Write-Host "✗ Could not retrieve logs: $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    Write-Host ""
+
+    # Exit with appropriate code
+    if ($Status -eq "Finished") {
+        Write-Host "=== TEST EXECUTION SUCCESSFUL ===" -ForegroundColor Green
+        exit 0
+    }
+    else {
+        Write-Host "=== TEST EXECUTION FAILED ===" -ForegroundColor Red
+        Write-Host "Error: $LastResult" -ForegroundColor Red
+        exit 1
+    }
+
+}
+catch {
     Write-Host ""
     Write-Host "=== FATAL ERROR ===" -ForegroundColor Red
     Write-Host "Error Type: $($_.Exception.GetType().Name)" -ForegroundColor Red
@@ -172,7 +321,8 @@ try {
             if ($responseBody) {
                 Write-Host "Response Body: $responseBody" -ForegroundColor Red
             }
-        } catch {
+        }
+        catch {
             # Ignore errors reading response body
         }
     }
@@ -182,7 +332,7 @@ try {
     Write-Host "  1. Verify BC container is running: docker ps" -ForegroundColor Gray
     Write-Host "  2. Check credentials match container config" -ForegroundColor Gray
     Write-Host "  3. Verify API endpoint is accessible: curl $BaseUrl/api/v2.0/companies" -ForegroundColor Gray
-    Write-Host "  4. Ensure test app is published to the container" -ForegroundColor Gray
+    Write-Host "  4. Ensure test app and TestRunner framework are published to the container" -ForegroundColor Gray
     Write-Host ""
     Write-Host "Full Error Details:" -ForegroundColor DarkRed
     Write-Host $_ -ForegroundColor DarkRed

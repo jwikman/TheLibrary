@@ -130,7 +130,6 @@ jobs:
             -BaseUrl "http://localhost:7048/BC" `
             -Tenant "default" `
             -Username "$env:BC_USERNAME" `
-            -Password "$env:BC_PASSWORD" `
             -CodeunitId 70454 `
             -MaxWaitSeconds 300
 
