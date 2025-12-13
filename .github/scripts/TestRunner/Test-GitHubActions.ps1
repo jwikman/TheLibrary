@@ -17,9 +17,9 @@ Write-Host ""
 
 # Configuration for GitHub Actions
 # IMPORTANT: Include tenant in the URL for multi-tenant environments
-$serviceUrl = "http://localhost/BC/WebClient?tenant=default"
+$serviceUrl = "http://localhost/BC"
 $username = "admin"
-$password = ConvertTo-SecureString "admin123!" -AsPlainText -Force
+$password = ConvertTo-SecureString "Admin123!" -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($username, $password)
 
 Write-Host "Configuration:"
