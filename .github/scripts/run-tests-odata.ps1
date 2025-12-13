@@ -54,6 +54,8 @@ param(
     [int]$MaxWaitSeconds = 300
 )
 
+#Requires -Version 7.0
+
 # Enable strict mode
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -72,10 +74,8 @@ if (-not $Username -or -not $Password) {
     exit 1
 }
 
-# Convert SecureString password to plain text for Basic Auth
-$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
-$PlainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-[System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+# Convert SecureString password to plain text for Basic Auth (PowerShell 7+ cross-platform method)
+$PlainPassword = ConvertFrom-SecureString -SecureString $Password -AsPlainText
 
 # Build API endpoint
 $ApiPath = "/api/custom/automation/v1.0/codeunitRunRequests"
