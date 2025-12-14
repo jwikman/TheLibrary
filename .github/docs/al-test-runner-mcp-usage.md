@@ -37,10 +37,10 @@ The test app includes the required dependencies:
 This project contains 4 test codeunits with 22 test methods total:
 
 ### 1. LibraryMemberTests (Codeunit 70450) - 4 tests
-- TestCreateMember
-- TestMemberEmailValidation
-- TestMemberType
-- TestMultipleMembers
+- TestCreateLibraryMember
+- TestLibraryMemberEmailValidation
+- TestLibraryMemberInvalidEmail
+- TestLibraryMemberMembershipTypes
 
 ### 2. LibraryAuthorTests (Codeunit 70451) - 5 tests
 - TestCreateAuthor
@@ -53,18 +53,18 @@ This project contains 4 test codeunits with 22 test methods total:
 - TestCreateBook
 - TestBookISBNValidation
 - TestBookInvalidISBN
-- TestBookPublicationYear
+- TestBookPublicationYearValidation
+- TestBookInvalidPublicationYear
 - TestBookQuantityValidation
-- TestBookAvailability
-- TestBookWithAuthor
+- TestBookNegativeQuantity
 
 ### 4. LibraryBookLoanTests (Codeunit 70453) - 6 tests
-- TestCreateLoan
-- TestLoanDateValidation
-- TestLoanReturnDate
-- TestLoanRequiresPost
-- TestMultipleLoans
-- TestLoanAvailabilityCheck
+- TestCreateBookLoan
+- TestBookLoanExpectedReturnDateValidation
+- TestBookLoanInvalidExpectedReturnDate
+- TestBookLoanCannotDeletePosted
+- TestBookLoanPostRequiresMember
+- TestBookLoanPostRequiresLines
 
 ## Using al-test-runner MCP Server
 
@@ -91,7 +91,7 @@ const tests = await discover_al_tests({
 //     {
 //       "id": 70450,
 //       "name": "LIB Library Member Tests",
-//       "methods": ["TestCreateMember", "TestMemberEmailValidation", ...]
+//       "methods": ["TestCreateLibraryMember", "TestLibraryMemberEmailValidation", "TestLibraryMemberInvalidEmail", "TestLibraryMemberMembershipTypes"]
 //     },
 //     ...
 //   ]
