@@ -98,10 +98,10 @@ The following al-test-runner MCP server tools were utilized:
 
 ## Execution Notes
 
-1. **Container Setup**: Tests were executed against the BC container using `localhost` as the connection endpoint
-2. **Test Runner Service**: The TestRunnerService app was automatically installed by the MCP server
-3. **Authentication**: Used admin credentials from `.altestrunner.json` configuration
-4. **Company**: Tests executed against "My Company" in the BC instance
+1. **Container Setup**: Tests were executed against the BC container. The MCP server was configured with `containerName: "localhost"` to connect to the local BC container (actual container name: `bcdev-temp-bc-1`)
+2. **Test Runner Service**: The TestRunnerService app was automatically installed by the MCP server during test execution
+3. **Authentication**: Used admin credentials (username: "admin", password from configuration)
+4. **Company**: Tests executed against "My Company" in the BC instance (note: the MCP server selected this company automatically; configuration specifies "CRONUS International Ltd." as preferred)
 5. **Tenant**: Default tenant used for test execution
 
 ## Advantages of al-test-runner MCP Server
