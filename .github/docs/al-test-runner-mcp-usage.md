@@ -85,15 +85,23 @@ const tests = await discover_al_tests({
   workspacePath: "/home/runner/work/TheLibrary/TheLibrary/TestApp"
 });
 
-// Expected output:
+// Actual output from this repository:
 // {
-//   "codeunits": [
+//   "success": true,
+//   "testCodeunitsFound": 4,
+//   "totalTestMethods": 22,
+//   "testCodeunits": [
 //     {
 //       "id": 70450,
 //       "name": "LIB Library Member Tests",
-//       "methods": ["TestCreateLibraryMember", "TestLibraryMemberEmailValidation", "TestLibraryMemberInvalidEmail", "TestLibraryMemberMembershipTypes"]
-//     },
-//     ...
+//       "methods": [
+//         {"name": "TestCreateLibraryMember", "lineNumber": 16},
+//         {"name": "TestLibraryMemberEmailValidation", "lineNumber": 38},
+//         {"name": "TestLibraryMemberInvalidEmail", "lineNumber": 55},
+//         {"name": "TestLibraryMemberMembershipTypes", "lineNumber": 71}
+//       ]
+//     }
+//     // ... 3 more codeunits (70451, 70452, 70453)
 //   ]
 // }
 ```
@@ -104,23 +112,30 @@ const tests = await discover_al_tests({
 // Execute all discovered tests against the BC container
 const results = await run_al_tests({
   workspacePath: "/home/runner/work/TheLibrary/TheLibrary/TestApp",
-  containerName: "bcdev-temp-bc-1",  // or "bcserver" from config
+  containerName: "localhost",  // Use localhost for local containers
   userName: "admin",
   password: "Admin123!",
-  companyName: "CRONUS International Ltd.",
-  // Optional: specify test filter
-  testCodeunitIds: [70450, 70451, 70452, 70453]
+  companyName: "CRONUS International Ltd."
 });
 
-// Expected output:
+// Actual output from this repository (December 15, 2025):
 // {
-//   "totalTests": 22,
-//   "passed": 22,
-//   "failed": 0,
-//   "duration": "2.5s",
-//   "details": [...]
+//   "success": true,
+//   "exitCode": 0,
+//   "passedTests": 22,
+//   "failedTests": 0
 // }
+// ✅ All 22 tests passed successfully!
+// See test-execution-results.md for detailed results
 ```
+
+### ✅ Verified Execution
+
+The al-test-runner MCP server has been successfully tested with this repository:
+- **Date**: December 15, 2025
+- **Result**: All 22 tests passed ✅
+- **Pass Rate**: 100%
+- **Details**: See [test-execution-results.md](./test-execution-results.md) for full execution report
 
 ## Integration with GitHub Actions
 
