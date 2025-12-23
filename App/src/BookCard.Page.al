@@ -57,5 +57,13 @@ page 70324 "LIB Book Card"
                 }
             }
         }
+        area(FactBoxes)
+        {
+            part(BookStatistics; "LIB Book Statistics FactBox")
+            {
+                Caption = 'Book Statistics';
+                SubPageLink = "No." = field("No.");
+            }
+        }
     }
 }

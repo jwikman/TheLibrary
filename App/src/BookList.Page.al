@@ -42,5 +42,13 @@ page 70325 "LIB Book List"
                 }
             }
         }
+        area(FactBoxes)
+        {
+            part(BookStatistics; "LIB Book Statistics FactBox")
+            {
+                Caption = 'Book Statistics';
+                SubPageLink = "No." = field("No.");
+            }
+        }
     }
 }
