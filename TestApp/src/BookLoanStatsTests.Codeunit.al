@@ -3,7 +3,7 @@ namespace Demo.Library.Test;
 using Demo.Library;
 using System.TestLibraries.Utilities;
 
-codeunit 70454 "LIB Book Loan Stats Tests"
+codeunit 70455 "LIB Book Loan Stats Tests"
 {
     Subtype = Test;
     TestPermissions = Disabled;
@@ -197,8 +197,8 @@ codeunit 70454 "LIB Book Loan Stats Tests"
     [Test]
     procedure TestGetMostBorrowedBooks()
     var
-        BookLoanStatistics: Codeunit "LIB Book Loan Statistics";
         TempMostBorrowedBook: Record "LIB Most Borrowed Book" temporary;
+        BookLoanStatistics: Codeunit "LIB Book Loan Statistics";
         Book1: Code[20];
         Book2: Code[20];
         Member: Code[20];
@@ -221,7 +221,7 @@ codeunit 70454 "LIB Book Loan Stats Tests"
         Assert.AreEqual(2, TempMostBorrowedBook.Count(), 'Should have 2 books in most borrowed list');
 
         // [THEN] First book should be Book1 with 2 loans
-        TempMostBorrowedBook.FindFirst();
+        TempMostBorrowedBook.FindSet();
         Assert.AreEqual(Book1, TempMostBorrowedBook."Book No.", 'First book should be Book1');
         Assert.AreEqual(2, TempMostBorrowedBook."Loan Count", 'Book1 should have 2 loans');
 
@@ -244,7 +244,7 @@ codeunit 70454 "LIB Book Loan Stats Tests"
         CleanupBookLoanLedgerEntries();
         Book := CreateBookNo();
         Member := CreateMemberNo();
-        DocNo := Any.AlphanumericText(10);
+        DocNo := CopyStr(Any.AlphanumericText(10), 1, 20);
 
         CreateBookLoanLedgerEntryWithDocNo(Today() - 14, "LIB Book Loan Entry Type"::Loan, Book, Member, DocNo);
         CreateBookLoanLedgerEntryWithDocNo(Today(), "LIB Book Loan Entry Type"::Return, Book, Member, DocNo);
@@ -273,8 +273,8 @@ codeunit 70454 "LIB Book Loan Stats Tests"
         Book1 := CreateBookNo();
         Book2 := CreateBookNo();
         Member := CreateMemberNo();
-        DocNo1 := Any.AlphanumericText(10);
-        DocNo2 := Any.AlphanumericText(10);
+        DocNo1 := CopyStr(Any.AlphanumericText(10), 1, 20);
+        DocNo2 := CopyStr(Any.AlphanumericText(10), 1, 20);
 
         CreateBookLoanLedgerEntryWithDocNo(Today() - 14, "LIB Book Loan Entry Type"::Loan, Book1, Member, DocNo1);
         CreateBookLoanLedgerEntryWithDocNo(Today(), "LIB Book Loan Entry Type"::Return, Book1, Member, DocNo1);
@@ -306,7 +306,7 @@ codeunit 70454 "LIB Book Loan Stats Tests"
         BookLoanLedgerEntry."Book No." := CreateBookNo();
         BookLoanLedgerEntry."Member No." := CreateMemberNo();
         BookLoanLedgerEntry."Posting Date" := PostingDate;
-        BookLoanLedgerEntry."Document No." := Any.AlphanumericText(10);
+        BookLoanLedgerEntry."Document No." := CopyStr(Any.AlphanumericText(10), 1, 20);
         BookLoanLedgerEntry."Entry Type" := EntryType;
         BookLoanLedgerEntry.Quantity := 1;
         BookLoanLedgerEntry.Insert();
@@ -321,7 +321,7 @@ codeunit 70454 "LIB Book Loan Stats Tests"
         BookLoanLedgerEntry."Book No." := BookNo;
         BookLoanLedgerEntry."Member No." := MemberNo;
         BookLoanLedgerEntry."Posting Date" := PostingDate;
-        BookLoanLedgerEntry."Document No." := Any.AlphanumericText(10);
+        BookLoanLedgerEntry."Document No." := CopyStr(Any.AlphanumericText(10), 1, 20);
         BookLoanLedgerEntry."Entry Type" := EntryType;
         BookLoanLedgerEntry.Quantity := 1;
         BookLoanLedgerEntry.Insert();

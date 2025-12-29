@@ -59,6 +59,7 @@
 		"chat.promptFilesLocations": {
 			".github/prompts": true
 		},
+		"al-test-runner.codeCoveragePath": "../.altestrunner/codecoverage.json"
 	},
 	"extensions": {
 		"recommendations": [
