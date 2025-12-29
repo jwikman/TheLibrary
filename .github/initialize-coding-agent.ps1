@@ -58,12 +58,19 @@ $bcContainerHelperConfig.TrustedNuGetFeeds = @(
 )
 
 if ($IsLinux) {
-    $analyzerFolderPath = Get-Item (Join-Path $env:HOME ".dotnet/tools/.store/$($toolName.ToLower())/*/$($toolName.ToLower())/*/lib/*/*/") -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+    $analyzerFolderPath = Get-Item (Join-Path $env:HOME ".dotnet/tools/.store/$($toolName.ToLower())/*/$($toolName.ToLower())/*/tools/net8.0/any/") -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
 }
 else {
     # Used for development on Windows
-    $analyzerFolderPath = Get-Item (Join-Path $env:USERPROFILE ".dotnet/tools/.store/$($toolName.ToLower())/*/$($toolName.ToLower())/*/lib/*/*/") -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+    $analyzerFolderPath = Get-Item (Join-Path $env:USERPROFILE ".dotnet/tools/.store/$($toolName.ToLower())/*/$($toolName.ToLower())/*/tools/net8.0/any/") -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
 }
+
+if (-not $analyzerFolderPath) {
+    Write-Error "Analyzer folder not found. Expected path pattern: .dotnet/tools/.store/$($toolName.ToLower())/*/$($toolName.ToLower())/*/tools/net8.0/any/"
+    exit 1
+}
+
+Write-Host "Using analyzer folder: $analyzerFolderPath"
 
 if (-not $analyzerFolderPath) {
     Write-Error "Analyzer folder not found. Expected path pattern: .dotnet/tools/.store/$($toolName.ToLower())/*/$($toolName.ToLower())/*/lib/*/*/"
